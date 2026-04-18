@@ -3,7 +3,7 @@
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
-use crate::{DbError, Result};
+use crate::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileHashRow {
