@@ -1,0 +1,6 @@
+target/
+Cargo.lock
+.DS_Store
+*.swp
+.prism/
+.claude/settings.local.json
