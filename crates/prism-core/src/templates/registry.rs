@@ -1,7 +1,5 @@
 //! Template registry — bundles all template assets at compile time.
 
-use super::TemplateError;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TemplateName {
     ClaudeMd,
@@ -9,8 +7,6 @@ pub enum TemplateName {
     DirClaudeMd,
     DirContextMd,
     PrismMd,
-
-    DriftReport,
 
     RulesGeneral,
     RulesService,
@@ -34,7 +30,6 @@ impl TemplateName {
             Self::DirClaudeMd => "dir-CLAUDE.md",
             Self::DirContextMd => "dir-CONTEXT.md",
             Self::PrismMd => "PRISM.md",
-            Self::DriftReport => "drift-report.md",
             Self::RulesGeneral => "rules/general-conventions.md",
             Self::RulesService => "rules/service-conventions.md",
             Self::RulesViewModel => "rules/viewmodel-conventions.md",
@@ -51,12 +46,9 @@ impl TemplateName {
 
     pub fn output_filename(&self) -> &'static str {
         match self {
-            Self::ClaudeMd => "CLAUDE.md",
-            Self::ContextMd => "CONTEXT.md",
-            Self::DirClaudeMd => "CLAUDE.md",
-            Self::DirContextMd => "CONTEXT.md",
+            Self::ClaudeMd | Self::DirClaudeMd => "CLAUDE.md",
+            Self::ContextMd | Self::DirContextMd => "CONTEXT.md",
             Self::PrismMd => "PRISM.md",
-            Self::DriftReport => "drift-report.md",
             Self::RulesGeneral => "general-conventions.md",
             Self::RulesService => "service-conventions.md",
             Self::RulesViewModel => "viewmodel-conventions.md",
@@ -78,7 +70,6 @@ impl TemplateName {
             Self::DirClaudeMd,
             Self::DirContextMd,
             Self::PrismMd,
-            Self::DriftReport,
             Self::RulesGeneral,
             Self::RulesService,
             Self::RulesViewModel,
@@ -122,7 +113,6 @@ pub fn get_template_source(name: TemplateName) -> &'static str {
         TemplateName::DirClaudeMd => include_str!("../../../../templates/dir-CLAUDE.md.template"),
         TemplateName::DirContextMd => include_str!("../../../../templates/dir-CONTEXT.md.template"),
         TemplateName::PrismMd => include_str!("../../../../templates/PRISM.md.template"),
-        TemplateName::DriftReport => include_str!("../../../../templates/drift-report.md.template"),
         TemplateName::RulesGeneral => {
             include_str!("../../../../templates/rules/general-conventions.md.template")
         }
@@ -153,13 +143,4 @@ pub fn get_template_source(name: TemplateName) -> &'static str {
             include_str!("../../../../templates/refs/domain-knowledge.md.template")
         }
     }
-}
-
-pub fn find_template(name: &str) -> Result<TemplateName, TemplateError> {
-    for tpl in TemplateName::all() {
-        if tpl.as_str() == name || tpl.output_filename() == name {
-            return Ok(*tpl);
-        }
-    }
-    Err(TemplateError::NotFound(name.to_string()))
 }
