@@ -204,7 +204,7 @@ impl MockRunner {
         first_arg: Option<&str>,
         response: io::Result<CommandOutput>,
     ) {
-        self.scripts.lock().unwrap().push((
+        self.scripts.lock().unwrap_or_else(|e| e.into_inner()).push((
             program.to_string(),
             first_arg.map(str::to_string),
             response,
@@ -223,7 +223,7 @@ impl MockRunner {
         run_placeholder: io::Result<CommandOutput>,
         timeout_response: io::Result<RunResult>,
     ) {
-        self.scripts.lock().unwrap().push((
+        self.scripts.lock().unwrap_or_else(|e| e.into_inner()).push((
             program.to_string(),
             first_arg.map(str::to_string),
             run_placeholder,
@@ -263,7 +263,7 @@ impl CommandRunner for MockRunner {
         _cwd: Option<&Path>,
         _stdin: Option<&str>,
     ) -> io::Result<CommandOutput> {
-        let mut scripts = self.scripts.lock().unwrap();
+        let mut scripts = self.scripts.lock().unwrap_or_else(|e| e.into_inner());
         let first_arg = args.first().copied();
         let idx = scripts
             .iter()
@@ -287,7 +287,7 @@ impl CommandRunner for MockRunner {
         _stdin: Option<&str>,
         _timeout: Duration,
     ) -> io::Result<RunResult> {
-        let mut scripts = self.scripts.lock().unwrap();
+        let mut scripts = self.scripts.lock().unwrap_or_else(|e| e.into_inner());
         let first_arg = args.first().copied();
         let idx = scripts
             .iter()

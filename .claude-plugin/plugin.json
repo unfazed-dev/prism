@@ -5,9 +5,5 @@
   "author": {
     "name": "Evan F Pierre Louis"
   },
-  "license": "MIT",
-  "engines": {
-    "claude_code": ">=1.0.0"
-  },
-  "skills": "./skills"
+  "license": "MIT"
 }
