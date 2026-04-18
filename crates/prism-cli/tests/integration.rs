@@ -62,7 +62,7 @@ fn start_status_hook_pipeline() {
         .assert()
         .success()
         .stdout(str::contains("managed docs:"))
-        .stdout(str::contains("unresolved drift:  0"))
+        .stdout(str::contains("source drift:      0"))
         .stdout(str::contains("pending enrich:    0"));
 
     // create a source file, then simulate PostToolUse hook twice
@@ -88,7 +88,7 @@ fn start_status_hook_pipeline() {
         .arg("status")
         .assert()
         .success()
-        .stdout(str::contains("unresolved drift:  1"))
+        .stdout(str::contains("source drift:      1"))
         .stdout(str::contains("pending enrich:    1"));
 
     // session-start hook should succeed and produce valid JSON output
@@ -235,6 +235,34 @@ fn icm_violation_detected_and_queued_by_hook() {
     assert!(
         !stdout.contains("pending fix:       0"),
         "expected >0 pending fix: {stdout}"
+    );
+}
+
+#[test]
+fn session_start_surfaces_icm_violations_in_message() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    prism(root).arg("start").assert().success();
+
+    // Seed one ICM violation via a managed-md edit.
+    std::fs::create_dir_all(root.join("01-discovery")).unwrap();
+    let rel = "01-discovery/CONTEXT.md";
+    std::fs::write(root.join(rel), "# bad\n").unwrap();
+    let hook_json = format!(
+        r#"{{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{{"file_path":"{}"}},"session_id":"s"}}"#,
+        rel
+    );
+    let out = run_hook(root, "post-tool-use", &hook_json);
+    assert!(out.status.success());
+
+    // Session-start should now emit a message referencing ICM state + pending fix.
+    let session_json = r#"{"hook_event_name":"SessionStart","session_id":"s"}"#;
+    let out = run_hook(root, "session-start", session_json);
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("ICM violation") && stdout.contains("pending fix"),
+        "session-start message missing ICM surface: {stdout}"
     );
 }
 

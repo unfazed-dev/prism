@@ -14,7 +14,10 @@ pub fn run() -> anyhow::Result<()> {
     let db = PrismDb::open(&db_path).context("open database")?;
 
     let docs = document_registry::list_all(db.conn())?;
-    let drift = db.list_unresolved_drift()?;
+    let source_drift =
+        doc_drift::count_unresolved_by_type(db.conn(), doc_drift::DRIFT_TYPE_OUTDATED)?;
+    let icm_violations =
+        doc_drift::count_unresolved_by_type(db.conn(), doc_drift::DRIFT_TYPE_ICM)?;
     let pending_enrich = directive_log::count_by_state(
         db.conn(),
         directive_log::KIND_ENRICH,
@@ -25,12 +28,10 @@ pub fn run() -> anyhow::Result<()> {
         directive_log::KIND_FIX_ICM,
         directive_log::STATE_PENDING,
     )?;
-    let icm_violations =
-        doc_drift::count_unresolved_by_type(db.conn(), doc_drift::DRIFT_TYPE_ICM)?;
 
     println!("PRISM status — {}", project_root.display());
     println!("  managed docs:      {}", docs.len());
-    println!("  unresolved drift:  {}", drift.len());
+    println!("  source drift:      {}", source_drift);
     println!("  icm violations:    {}", icm_violations);
     println!("  pending enrich:    {}", pending_enrich);
     println!("  pending fix:       {}", pending_fix);
