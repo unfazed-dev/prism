@@ -13,12 +13,6 @@
 {% endfor %}{% else %}No recent changes tracked.
 {% endif %}
 
-## Related Decisions
-
-{% if decisions %}{% for d in decisions %}- **{{ d.id }}**: {{ d.decision }} (`{{ d.scope }}`)
-{% endfor %}{% else %}No directory-scoped decisions.
-{% endif %}
-
 ## Routing Table
 
 {% if routes %}| Pattern | Handler | Notes |

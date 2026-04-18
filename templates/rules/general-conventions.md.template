@@ -34,5 +34,4 @@
 
 - Run `/prism:status` to check project health
 - Drift is auto-detected and fixed at session start
-- Decisions are auto-logged from conversation
 - Stage transitions are managed automatically via hooks

@@ -4,28 +4,6 @@
 > System status for {{ project_name | default("this project") }}.
 > Generated at turn {{ current_turn | default("0") }}.
 
-## Active Goal
-
-{% if active_goal %}**{{ active_goal.description }}**
-- Scope: `{{ active_goal.scope }}`
-- Started: Turn {{ active_goal.started_turn | default("?") }}{% else %}No active goal.{% endif %}
-
-## Goal Stack
-
-{% if goals %}| # | Goal | Status | Scope |
-|---|------|--------|-------|
-{% for g in goals %}| {{ loop.index }} | {{ g.description }} | {{ g.status }} | `{{ g.scope }}` |
-{% endfor %}{% else %}Empty goal stack.
-{% endif %}
-
-## Decisions
-
-{% if decisions %}| ID | Decision | Scope | Active |
-|----|----------|-------|--------|
-{% for d in decisions %}| {{ d.id }} | {{ d.decision }} | `{{ d.scope }}` | {{ d.active }} |
-{% endfor %}{% else %}No decisions recorded.
-{% endif %}
-
 ## Drift Summary
 
 {% if drift_counts %}- Info: {{ drift_counts.info }}

@@ -34,4 +34,4 @@ dependencies: []
 
 ## Update Policy
 
-{{ update_policy | default("- Review dependencies monthly\n- Security updates applied immediately\n- Major version upgrades require a decision record") }}
+{{ update_policy | default("- Review dependencies monthly\n- Security updates applied immediately\n- Major version upgrades require review") }}

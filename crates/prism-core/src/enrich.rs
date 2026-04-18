@@ -204,7 +204,7 @@ pub fn build_enrichment_prompt(dir: &Path, project_root: &Path) -> String {
             Rules for CONTEXT.md (dynamic — what is HAPPENING here):\n\
             - Ensure `<!-- prism:managed -->` is on line 1.\n\
             - Add `<!-- prism:context-enriched -->` on line 2.\n\
-            - Describe active work, recent changes, open questions, and decisions in progress.\n\
+            - Describe active work, recent changes, and open questions.\n\
             - Do not duplicate static structure from CLAUDE.md.\n\
             - Be concise: 10-20 lines total.",
             rel = rel.display()

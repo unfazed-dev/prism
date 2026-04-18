@@ -32,5 +32,4 @@
 | Architecture | `.prism/refs/01-architecture.md` |
 | Schema | `.prism/refs/02-schema.md` |
 | Dependencies | `.prism/refs/03-dependencies.md` |
-| Decisions | `.prism/PRISM.md` |
 | Stage Status | `/prism:status` |

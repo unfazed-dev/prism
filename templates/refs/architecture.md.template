@@ -24,12 +24,6 @@ dependencies: []
 
 {{ data_flow | default("*Describe how data moves through the system.*") }}
 
-## Key Design Decisions
-
-{% if design_decisions %}{% for d in design_decisions %}- **{{ d.title }}**: {{ d.summary }}
-{% endfor %}{% else %}- See decision records in `.prism/PRISM.md`
-{% endif %}
-
 ## Constraints
 
 {% if constraints %}{% for c in constraints %}- {{ c }}

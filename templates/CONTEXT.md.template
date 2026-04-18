@@ -3,18 +3,6 @@
 
 > Current session context for {{ project_name | default("this project") }}.
 
-## Active Goal
-
-{% if active_goal %}**{{ active_goal.description }}** (scope: `{{ active_goal.scope }}`){% else %}No active goal. Goals are auto-detected from conversation.{% endif %}
-
-## Recent Decisions
-
-{% if decisions %}| ID | Scope | Decision | Status |
-|----|-------|----------|--------|
-{% for d in decisions %}| {{ d.id }} | `{{ d.scope }}` | {{ d.decision }} | {{ d.status }} |
-{% endfor %}{% else %}No decisions recorded yet.
-{% endif %}
-
 ## Freshness Summary
 
 {% if freshness_items %}| Document | Score | Last Read | TTL |
@@ -26,8 +14,3 @@
 ## Drift Status
 
 {% if drift_summary %}{{ drift_summary }}{% else %}No drift detected. Drift is auto-checked at session start.{% endif %}
-
-## Paused Goals
-
-{% if paused_goals %}{% for g in paused_goals %}- **{{ g.description }}** (paused at turn {{ g.paused_turn | default("?") }})
-{% endfor %}{% else %}No paused goals.{% endif %}

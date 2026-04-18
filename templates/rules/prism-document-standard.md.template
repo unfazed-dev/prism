@@ -7,7 +7,7 @@
 
 Every significant directory maintains two context files:
 - **CLAUDE.md** — "What IS here?" (static description, structure, conventions)
-- **CONTEXT.md** — "What's HAPPENING here?" (dynamic state, decisions, activity)
+- **CONTEXT.md** — "What's HAPPENING here?" (dynamic state, activity)
 
 ## Layer-Aware Frontmatter
 
@@ -28,7 +28,7 @@ Every significant directory maintains two context files:
 ---
 title: "Document Title"
 layer: L3b          # L3a, L3b, L4, Meta
-classification: reference  # core, architecture, api, guide, reference, decision, goal, progress, template, other
+classification: reference  # core, architecture, api, guide, reference, template, other
 scope: "project/module"
 tags: [tag1, tag2]
 dependencies: [doc-id-1, doc-id-2]
