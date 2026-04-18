@@ -5,7 +5,7 @@ use std::process::Command;
 use anyhow::Context;
 use prism_core::config::{AutopilotConfig, PrismConfig};
 use prism_core::enrich::{fix_icm_file, IcmFixOutcome};
-use prism_core::icm::{validate_icm, IcmSettings, Scope};
+use prism_core::icm::{load_settings, validate_icm, Scope};
 use prism_db::{directive_log, PrismDb};
 
 pub fn run() -> anyhow::Result<()> {
@@ -57,8 +57,8 @@ pub fn run() -> anyhow::Result<()> {
             continue;
         }
 
-        let violations =
-            validate_icm(&project_root, &Scope::File(rel.clone()), IcmSettings::default());
+        let settings = load_settings(&project_root);
+        let violations = validate_icm(&project_root, &Scope::File(rel.clone()), settings);
         if violations.is_empty() {
             directive_log::mark_completed(db.conn(), id, chrono::Utc::now().timestamp())?;
             resolved += 1;

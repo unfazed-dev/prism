@@ -321,7 +321,7 @@ pub fn fix_icm_file_with(
             let remaining = crate::icm::validate_icm(
                 project_root,
                 &crate::icm::Scope::File(rel_path.to_path_buf()),
-                crate::icm::IcmSettings::default(),
+                crate::icm::load_settings(project_root),
             );
             if remaining.is_empty() {
                 Ok(IcmFixOutcome::Resolved { file: abs_path })

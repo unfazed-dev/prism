@@ -6,7 +6,7 @@
 
 use crate::hooks::protocol::{HookContext, HookOutput};
 use crate::hooks::HookError;
-use prism_db::{directive_log, PrismDb};
+use prism_db::{directive_log, doc_drift, PrismDb};
 
 pub fn run(ctx: &HookContext) -> Result<HookOutput, HookError> {
     let db_path = ctx.project_root.join(".prism/prism.db");
@@ -16,20 +16,28 @@ pub fn run(ctx: &HookContext) -> Result<HookOutput, HookError> {
 
     let db = PrismDb::open(&db_path)?;
 
-    let unresolved_drift = db.list_unresolved_drift()?;
+    let source_drift =
+        doc_drift::count_unresolved_by_type(db.conn(), doc_drift::DRIFT_TYPE_OUTDATED)?;
+    let icm_violations =
+        doc_drift::count_unresolved_by_type(db.conn(), doc_drift::DRIFT_TYPE_ICM)?;
     let pending_enrich = directive_log::count_by_state(
         db.conn(),
         directive_log::KIND_ENRICH,
         directive_log::STATE_PENDING,
     )?;
+    let pending_fix = directive_log::count_by_state(
+        db.conn(),
+        directive_log::KIND_FIX_ICM,
+        directive_log::STATE_PENDING,
+    )?;
 
-    let msg = if unresolved_drift.is_empty() && pending_enrich == 0 {
+    let any = source_drift + icm_violations + pending_enrich + pending_fix;
+    let msg = if any == 0 {
         None
     } else {
         Some(format!(
-            "PRISM: {} unresolved drift, {} pending enrichment",
-            unresolved_drift.len(),
-            pending_enrich
+            "PRISM: {source_drift} source drift, {icm_violations} ICM violation(s), \
+             {pending_enrich} pending enrich, {pending_fix} pending fix"
         ))
     };
 

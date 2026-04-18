@@ -18,6 +18,23 @@ pub fn count_unresolved_by_type(conn: &Connection, drift_type: &str) -> Result<i
     .map_err(DbError::from)
 }
 
+/// True when an identical unresolved drift row already exists. Used by hooks
+/// to dedupe repeated violations on the same file instead of accumulating rows.
+pub fn exists_unresolved(
+    conn: &Connection,
+    affected_doc: &str,
+    drift_type: &str,
+    description: &str,
+) -> Result<bool> {
+    let n: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM doc_drift
+         WHERE affected_doc = ?1 AND drift_type = ?2 AND description = ?3 AND resolved = 0",
+        params![affected_doc, drift_type, description],
+        |r| r.get(0),
+    )?;
+    Ok(n > 0)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocDriftRow {
     pub drift_id: Option<i64>,
@@ -30,6 +47,62 @@ pub struct DocDriftRow {
     pub resolved: bool,
     pub resolved_by: Option<String>,
     pub resolved_at: Option<String>,
+}
+
+#[cfg(test)]
+mod exists_unresolved_tests {
+    use super::*;
+    use crate::PrismDb;
+
+    fn db() -> PrismDb {
+        let db = PrismDb::open_in_memory().unwrap();
+        db.initialize().unwrap();
+        db
+    }
+
+    fn row(affected_doc: &str, drift_type: &str, description: &str) -> DocDriftRow {
+        DocDriftRow {
+            drift_id: None,
+            session_id: "s".into(),
+            detected_turn: 0,
+            affected_doc: affected_doc.into(),
+            drift_type: drift_type.into(),
+            severity: "warning".into(),
+            description: description.into(),
+            resolved: false,
+            resolved_by: None,
+            resolved_at: None,
+        }
+    }
+
+    #[test]
+    fn missing_row_returns_false() {
+        let d = db();
+        assert!(!exists_unresolved(d.conn(), "a.md", DRIFT_TYPE_ICM, "x").unwrap());
+    }
+
+    #[test]
+    fn inserted_unresolved_row_returns_true() {
+        let d = db();
+        insert(d.conn(), &row("a.md", DRIFT_TYPE_ICM, "x")).unwrap();
+        assert!(exists_unresolved(d.conn(), "a.md", DRIFT_TYPE_ICM, "x").unwrap());
+    }
+
+    #[test]
+    fn resolved_row_does_not_match() {
+        let d = db();
+        let mut r = row("a.md", DRIFT_TYPE_ICM, "x");
+        r.resolved = true;
+        insert(d.conn(), &r).unwrap();
+        assert!(!exists_unresolved(d.conn(), "a.md", DRIFT_TYPE_ICM, "x").unwrap());
+    }
+
+    #[test]
+    fn different_description_does_not_match() {
+        let d = db();
+        insert(d.conn(), &row("a.md", DRIFT_TYPE_ICM, "x")).unwrap();
+        assert!(!exists_unresolved(d.conn(), "a.md", DRIFT_TYPE_ICM, "y").unwrap());
+    }
 }
 
 pub fn insert(conn: &Connection, row: &DocDriftRow) -> Result<i64> {

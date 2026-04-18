@@ -1,10 +1,11 @@
 use std::env;
 
-use prism_core::icm::{validate_icm, IcmSettings, Scope};
+use prism_core::icm::{load_settings, validate_icm, Scope};
 
 pub fn run() -> anyhow::Result<()> {
     let project_root = env::current_dir()?;
-    let violations = validate_icm(&project_root, &Scope::Project, IcmSettings::default());
+    let settings = load_settings(&project_root);
+    let violations = validate_icm(&project_root, &Scope::Project, settings);
 
     if violations.is_empty() {
         println!("ICM: clean — 0 violations.");

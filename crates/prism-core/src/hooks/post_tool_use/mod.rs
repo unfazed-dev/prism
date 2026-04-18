@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use crate::hashing::hash_file;
 use crate::hooks::protocol::{extract_file_path, HookContext, HookInput, HookOutput};
 use crate::hooks::HookError;
-use crate::icm::{self, IcmSettings, Scope};
+use crate::icm::{self, Scope};
 use prism_db::{directive_log, doc_drift, document_registry, PrismDb};
 
 pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError> {
@@ -74,21 +74,29 @@ pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError
     };
 
     if content_changed {
-        doc_drift::insert(
+        let description = format!("Source edited: {}", rel_path);
+        if !doc_drift::exists_unresolved(
             db.conn(),
-            &doc_drift::DocDriftRow {
-                drift_id: None,
-                session_id: ctx.session_id.clone(),
-                detected_turn: 0,
-                affected_doc,
-                drift_type: "OutdatedContextFile".to_string(),
-                severity: "warning".to_string(),
-                description: format!("Source edited: {}", rel_path),
-                resolved: false,
-                resolved_by: None,
-                resolved_at: None,
-            },
-        )?;
+            &affected_doc,
+            doc_drift::DRIFT_TYPE_OUTDATED,
+            &description,
+        )? {
+            doc_drift::insert(
+                db.conn(),
+                &doc_drift::DocDriftRow {
+                    drift_id: None,
+                    session_id: ctx.session_id.clone(),
+                    detected_turn: 0,
+                    affected_doc,
+                    drift_type: doc_drift::DRIFT_TYPE_OUTDATED.to_string(),
+                    severity: "warning".to_string(),
+                    description,
+                    resolved: false,
+                    resolved_by: None,
+                    resolved_at: None,
+                },
+            )?;
+        }
     }
     let already_queued = matches!(
         directive_log::latest_for_target(db.conn(), &rel_dir, directive_log::KIND_ENRICH)?,
@@ -126,12 +134,21 @@ fn run_icm_validation(
     let violations = icm::validate_icm(
         project_root,
         &Scope::File(PathBuf::from(rel_path)),
-        IcmSettings::default(),
+        icm::load_settings(project_root),
     );
     if violations.is_empty() {
         return Ok(());
     }
     for v in &violations {
+        let description = format!("{}: {}", v.rule.id(), v.message);
+        if doc_drift::exists_unresolved(
+            db.conn(),
+            rel_path,
+            doc_drift::DRIFT_TYPE_ICM,
+            &description,
+        )? {
+            continue;
+        }
         doc_drift::insert(
             db.conn(),
             &doc_drift::DocDriftRow {
@@ -141,7 +158,7 @@ fn run_icm_validation(
                 affected_doc: rel_path.to_string(),
                 drift_type: doc_drift::DRIFT_TYPE_ICM.to_string(),
                 severity: "warning".to_string(),
-                description: format!("{}: {}", v.rule.id(), v.message),
+                description,
                 resolved: false,
                 resolved_by: None,
                 resolved_at: None,

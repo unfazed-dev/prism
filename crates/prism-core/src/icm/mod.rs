@@ -99,6 +99,21 @@ impl Default for IcmSettings {
     }
 }
 
+/// Load `IcmSettings` from `.prism/config.json`, walking up from `project_root`
+/// if absent. Fail-open on any error: default (strict) settings.
+pub fn load_settings(project_root: &Path) -> IcmSettings {
+    let cfg_path = project_root.join(".prism/config.json");
+    if !cfg_path.exists() {
+        return IcmSettings::default();
+    }
+    match crate::config::PrismConfig::load(&cfg_path) {
+        Ok(cfg) => IcmSettings {
+            allow_em_dash: cfg.icm.allow_em_dash,
+        },
+        Err(_) => IcmSettings::default(),
+    }
+}
+
 /// Run the validator. Returns violations sorted by (file, line, rule id) for
 /// stable output in tests and CLI.
 pub fn validate_icm(project_root: &Path, scope: &Scope, settings: IcmSettings) -> Vec<IcmViolation> {
@@ -150,6 +165,35 @@ mod tests {
         std::fs::write(dir.path().join("CONTEXT.md"), "# routing\n").unwrap();
         let v = validate_icm(dir.path(), &Scope::Project, IcmSettings::default());
         assert!(v.is_empty(), "unexpected violations: {v:?}");
+    }
+
+    #[test]
+    fn load_settings_defaults_strict_when_config_absent() {
+        let dir = TempDir::new().unwrap();
+        let s = load_settings(dir.path());
+        assert!(!s.allow_em_dash);
+    }
+
+    #[test]
+    fn load_settings_respects_allow_em_dash_override() {
+        let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join(".prism")).unwrap();
+        std::fs::write(
+            dir.path().join(".prism/config.json"),
+            r#"{"version":"0.1.0","icm":{"allow_em_dash":true}}"#,
+        )
+        .unwrap();
+        let s = load_settings(dir.path());
+        assert!(s.allow_em_dash);
+    }
+
+    #[test]
+    fn load_settings_fails_open_on_malformed_config() {
+        let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join(".prism")).unwrap();
+        std::fs::write(dir.path().join(".prism/config.json"), "not json").unwrap();
+        let s = load_settings(dir.path());
+        assert!(!s.allow_em_dash);
     }
 
     #[test]

@@ -11,6 +11,16 @@ pub struct PrismConfig {
     pub enabled: bool,
     #[serde(default)]
     pub enrichment: EnrichmentConfig,
+    #[serde(default)]
+    pub icm: IcmConfigOverrides,
+}
+
+/// Per-project ICM rule overrides. Defaults are spec-accurate.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct IcmConfigOverrides {
+    /// When true, `NO_EM_DASH` is skipped.
+    #[serde(default)]
+    pub allow_em_dash: bool,
 }
 
 fn default_true() -> bool {
@@ -23,6 +33,7 @@ impl Default for PrismConfig {
             version: "0.1.0".to_string(),
             enabled: true,
             enrichment: EnrichmentConfig::default(),
+            icm: IcmConfigOverrides::default(),
         }
     }
 }

@@ -239,6 +239,73 @@ fn icm_violation_detected_and_queued_by_hook() {
 }
 
 #[test]
+fn duplicate_hook_fires_do_not_accumulate_drift_rows() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    prism(root).arg("start").assert().success();
+
+    std::fs::create_dir_all(root.join("01-discovery")).unwrap();
+    let rel = "01-discovery/CONTEXT.md";
+    std::fs::write(root.join(rel), "# bad\n").unwrap();
+    let hook_json = format!(
+        r#"{{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{{"file_path":"{}"}},"session_id":"s"}}"#,
+        rel
+    );
+    for _ in 0..3 {
+        let out = run_hook(root, "post-tool-use", &hook_json);
+        assert!(out.status.success());
+    }
+
+    let conn = rusqlite::Connection::open(root.join(".prism/prism.db")).unwrap();
+    let distinct: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM doc_drift WHERE drift_type = 'IcmViolation' AND resolved = 0",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let grouped: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM (SELECT DISTINCT affected_doc, description FROM doc_drift WHERE drift_type = 'IcmViolation' AND resolved = 0)",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        distinct, grouped,
+        "expected one row per (doc, description); got {distinct} rows vs {grouped} distinct"
+    );
+}
+
+#[test]
+fn allow_em_dash_config_disables_em_dash_rule() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    prism(root).arg("start").assert().success();
+    std::fs::create_dir_all(root.join(".prism")).unwrap();
+    std::fs::write(
+        root.join(".prism/config.json"),
+        r#"{"version":"0.1.0","icm":{"allow_em_dash":true}}"#,
+    )
+    .unwrap();
+
+    // Introduce em dash into root CONTEXT.md; no other violations.
+    std::fs::write(
+        root.join("CONTEXT.md"),
+        "# routing\n\nPoints \u{2014} to stages.\n",
+    )
+    .unwrap();
+
+    let output = prism(root).arg("lint").output().expect("lint output");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "lint should pass when allow_em_dash=true; stdout={stdout}"
+    );
+    assert!(stdout.contains("ICM: clean"), "{stdout}");
+}
+
+#[test]
 fn prism_fix_without_claude_cli_bails() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path();
