@@ -49,6 +49,18 @@ pub struct DocDriftRow {
     pub resolved_at: Option<String>,
 }
 
+pub fn insert(conn: &Connection, row: &DocDriftRow) -> Result<i64> {
+    conn.execute(
+        "INSERT INTO doc_drift (session_id, detected_turn, affected_doc, drift_type, severity, description, resolved, resolved_by, resolved_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            row.session_id, row.detected_turn, row.affected_doc, row.drift_type,
+            row.severity, row.description, row.resolved, row.resolved_by, row.resolved_at,
+        ],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
 #[cfg(test)]
 mod exists_unresolved_tests {
     use super::*;
@@ -103,17 +115,5 @@ mod exists_unresolved_tests {
         insert(d.conn(), &row("a.md", DRIFT_TYPE_ICM, "x")).unwrap();
         assert!(!exists_unresolved(d.conn(), "a.md", DRIFT_TYPE_ICM, "y").unwrap());
     }
-}
-
-pub fn insert(conn: &Connection, row: &DocDriftRow) -> Result<i64> {
-    conn.execute(
-        "INSERT INTO doc_drift (session_id, detected_turn, affected_doc, drift_type, severity, description, resolved, resolved_by, resolved_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![
-            row.session_id, row.detected_turn, row.affected_doc, row.drift_type,
-            row.severity, row.description, row.resolved, row.resolved_by, row.resolved_at,
-        ],
-    )?;
-    Ok(conn.last_insert_rowid())
 }
 

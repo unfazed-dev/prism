@@ -85,18 +85,10 @@ pub enum Scope {
 
 /// Project-level config for optional rule relaxations. Defaults are
 /// spec-accurate (strict).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct IcmSettings {
     /// When true, `NO_EM_DASH` is skipped.
     pub allow_em_dash: bool,
-}
-
-impl Default for IcmSettings {
-    fn default() -> Self {
-        Self {
-            allow_em_dash: false,
-        }
-    }
 }
 
 /// Load `IcmSettings` from `.prism/config.json`, walking up from `project_root`
