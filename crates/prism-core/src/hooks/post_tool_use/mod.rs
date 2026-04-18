@@ -10,7 +10,7 @@ use std::path::Path;
 use crate::hashing::hash_file;
 use crate::hooks::protocol::{extract_file_path, HookContext, HookInput, HookOutput};
 use crate::hooks::HookError;
-use prism_db::{directive_log, PrismDb};
+use prism_db::{directive_log, doc_drift, PrismDb};
 
 pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError> {
     let Some(tool_input) = input.tool_input.as_ref() else {
@@ -32,9 +32,12 @@ pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError
         ctx.project_root.join(&rel_path)
     };
 
+    let mut content_changed = false;
     if let Ok(bytes) = std::fs::read(&abs_path) {
-        let hash = hash_file(&bytes).hex;
-        db.upsert_file_hash(&rel_path, &hash)?;
+        let new_hash = hash_file(&bytes).hex;
+        let prior = db.get_file_hash(&rel_path)?;
+        content_changed = prior.as_ref().map(|r| r.hash != new_hash).unwrap_or(false);
+        db.upsert_file_hash(&rel_path, &new_hash)?;
     }
 
     if let Some(parent) = abs_path.parent() {
@@ -45,6 +48,23 @@ pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError
             .to_string();
         let claude_path = parent.join("CLAUDE.md");
         if claude_path.exists() {
+            if content_changed {
+                doc_drift::insert(
+                    db.conn(),
+                    &doc_drift::DocDriftRow {
+                        drift_id: None,
+                        session_id: ctx.session_id.clone(),
+                        detected_turn: 0,
+                        affected_doc: format!("{}/CLAUDE.md", rel_dir),
+                        drift_type: "OutdatedContextFile".to_string(),
+                        severity: "warning".to_string(),
+                        description: format!("Source edited: {}", rel_path),
+                        resolved: false,
+                        resolved_by: None,
+                        resolved_at: None,
+                    },
+                )?;
+            }
             let already_queued = matches!(
                 directive_log::latest_for_target(db.conn(), &rel_dir, directive_log::KIND_ENRICH)?,
                 Some(row) if row.state == directive_log::STATE_PENDING
