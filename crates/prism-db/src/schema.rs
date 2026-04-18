@@ -79,20 +79,6 @@ CREATE INDEX IF NOT EXISTS idx_directive_log_target ON directive_log(target_path
 CREATE INDEX IF NOT EXISTS idx_directive_log_state ON directive_log(state, kind);
 CREATE INDEX IF NOT EXISTS idx_directive_log_priority ON directive_log(priority, emitted_at);
 
-CREATE TABLE IF NOT EXISTS enrichment_runs (
-    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    directory TEXT NOT NULL,
-    model TEXT,
-    input_tokens INTEGER NOT NULL DEFAULT 0,
-    output_tokens INTEGER NOT NULL DEFAULT 0,
-    cost_estimate_usd REAL NOT NULL DEFAULT 0.0,
-    duration_ms INTEGER NOT NULL DEFAULT 0,
-    outcome TEXT NOT NULL,
-    started_at TEXT NOT NULL,
-    ended_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_enrichment_runs_session ON enrichment_runs(session_id, started_at);
 "#;
 
 #[cfg(test)]

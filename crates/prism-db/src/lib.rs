@@ -4,7 +4,6 @@
 pub mod directive_log;
 pub mod doc_drift;
 pub mod document_registry;
-pub mod enrichment_runs;
 pub mod file_hashes;
 pub mod schema;
 
@@ -140,9 +139,6 @@ impl PrismDb {
         file_hashes::clear_pending(&self.conn, path_key)
     }
 
-    pub fn list_unresolved_drift(&self) -> Result<Vec<doc_drift::DocDriftRow>> {
-        doc_drift::list_all_unresolved(&self.conn)
-    }
 }
 
 #[cfg(test)]

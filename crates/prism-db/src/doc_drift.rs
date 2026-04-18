@@ -1,6 +1,6 @@
 //! CRUD for `doc_drift`.
 
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::{DbError, Result};
@@ -117,61 +117,3 @@ pub fn insert(conn: &Connection, row: &DocDriftRow) -> Result<i64> {
     Ok(conn.last_insert_rowid())
 }
 
-pub fn get_by_id(conn: &Connection, drift_id: i64) -> Result<DocDriftRow> {
-    conn.query_row(
-        "SELECT drift_id, session_id, detected_turn, affected_doc, drift_type, severity, description, resolved, resolved_by, resolved_at
-         FROM doc_drift WHERE drift_id = ?1",
-        params![drift_id],
-        row_from_sqlite,
-    )
-    .optional()?
-    .ok_or_else(|| DbError::NotFound {
-        entity: "doc_drift",
-        id: drift_id.to_string(),
-    })
-}
-
-pub fn list_unresolved(conn: &Connection, session_id: &str) -> Result<Vec<DocDriftRow>> {
-    let mut stmt = conn.prepare(
-        "SELECT drift_id, session_id, detected_turn, affected_doc, drift_type, severity, description, resolved, resolved_by, resolved_at
-         FROM doc_drift WHERE session_id = ?1 AND resolved = 0",
-    )?;
-    let rows = stmt
-        .query_map(params![session_id], row_from_sqlite)?
-        .collect::<std::result::Result<Vec<_>, _>>()?;
-    Ok(rows)
-}
-
-pub fn list_all_unresolved(conn: &Connection) -> Result<Vec<DocDriftRow>> {
-    let mut stmt = conn.prepare(
-        "SELECT drift_id, session_id, detected_turn, affected_doc, drift_type, severity, description, resolved, resolved_by, resolved_at
-         FROM doc_drift WHERE resolved = 0 LIMIT 1000",
-    )?;
-    let rows = stmt
-        .query_map([], row_from_sqlite)?
-        .collect::<std::result::Result<Vec<_>, _>>()?;
-    Ok(rows)
-}
-
-pub fn resolve(conn: &Connection, drift_id: i64, resolved_by: &str, resolved_at: &str) -> Result<()> {
-    conn.execute(
-        "UPDATE doc_drift SET resolved = 1, resolved_by = ?1, resolved_at = ?2 WHERE drift_id = ?3",
-        params![resolved_by, resolved_at, drift_id],
-    )?;
-    Ok(())
-}
-
-fn row_from_sqlite(r: &rusqlite::Row<'_>) -> rusqlite::Result<DocDriftRow> {
-    Ok(DocDriftRow {
-        drift_id: r.get(0)?,
-        session_id: r.get(1)?,
-        detected_turn: r.get(2)?,
-        affected_doc: r.get(3)?,
-        drift_type: r.get(4)?,
-        severity: r.get(5)?,
-        description: r.get(6)?,
-        resolved: r.get(7)?,
-        resolved_by: r.get(8)?,
-        resolved_at: r.get(9)?,
-    })
-}
