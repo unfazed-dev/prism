@@ -30,25 +30,13 @@ CREATE TABLE IF NOT EXISTS document_registry (
     origin TEXT DEFAULT 'prism'
 );
 
-CREATE TABLE IF NOT EXISTS document_dependencies (
-    from_doc TEXT NOT NULL,
-    to_doc TEXT NOT NULL,
-    relation TEXT NOT NULL,
-    PRIMARY KEY (from_doc, to_doc),
-    FOREIGN KEY (from_doc) REFERENCES document_registry(doc_id),
-    FOREIGN KEY (to_doc) REFERENCES document_registry(doc_id)
-);
-
 CREATE TABLE IF NOT EXISTS file_hashes (
     file_path TEXT PRIMARY KEY,
     hash TEXT NOT NULL,
     last_checked TEXT NOT NULL,
     file_size INTEGER NOT NULL,
-    language TEXT,
-    pending BOOLEAN NOT NULL DEFAULT 0,
-    previous_hash TEXT
+    language TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_file_hashes_pending ON file_hashes(pending) WHERE pending = 1;
 
 CREATE TABLE IF NOT EXISTS doc_drift (
     drift_id INTEGER PRIMARY KEY AUTOINCREMENT,

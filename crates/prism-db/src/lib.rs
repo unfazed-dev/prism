@@ -1,5 +1,5 @@
 //! prism-db — SQLite persistence for doc registry, file hashes, drift events,
-//! enrichment queue, and enrichment run accounting.
+//! and enrichment directive queue.
 
 pub mod directive_log;
 pub mod doc_drift;
@@ -7,7 +7,6 @@ pub mod document_registry;
 pub mod file_hashes;
 pub mod schema;
 
-use std::io::{self, Write};
 use std::path::Path;
 
 use rusqlite::Connection;
@@ -17,57 +16,11 @@ pub enum DbError {
     #[error("SQLite error: {0}")]
     Sqlite(#[from] rusqlite::Error),
 
-    #[error("not found: {entity} with id {id}")]
-    NotFound {
-        entity: &'static str,
-        id: String,
-    },
-
     #[error("{0}")]
     Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;
-
-/// Atomically replace `path`'s contents with `content`.
-pub fn atomic_write(path: &Path, content: &[u8]) -> io::Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let tmp_path = match path.file_name() {
-        Some(name) => {
-            let mut tmp = std::ffi::OsString::from(".");
-            tmp.push(name);
-            tmp.push(format!(".prism-tmp-{}", std::process::id()));
-            path.with_file_name(tmp)
-        }
-        None => {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "atomic_write target has no file name",
-            ))
-        }
-    };
-
-    {
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp_path)?;
-        f.write_all(content)?;
-        f.flush()?;
-        f.sync_all()?;
-    }
-
-    match std::fs::rename(&tmp_path, path) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let _ = std::fs::remove_file(&tmp_path);
-            Err(e)
-        }
-    }
-}
 
 /// Central database handle.
 pub struct PrismDb {
@@ -102,11 +55,6 @@ impl PrismDb {
         &self.conn
     }
 
-    pub fn transaction(&self) -> Result<rusqlite::Transaction<'_>> {
-        self.conn.unchecked_transaction().map_err(DbError::from)
-    }
-
-    // File hashes convenience
     pub fn get_file_hash(&self, path: &str) -> Result<Option<file_hashes::FileHashRow>> {
         file_hashes::get_by_path(&self.conn, path)
     }
@@ -120,25 +68,9 @@ impl PrismDb {
                 last_checked: chrono::Utc::now().to_rfc3339(),
                 file_size: 0,
                 language: None,
-                pending: false,
-                previous_hash: None,
             },
         )
     }
-
-    pub fn write_managed_with_hash(
-        &self,
-        path_key: &str,
-        abs_path: &std::path::Path,
-        content: &[u8],
-        new_hash: &str,
-    ) -> Result<()> {
-        file_hashes::mark_pending(&self.conn, path_key, new_hash)?;
-        atomic_write(abs_path, content)
-            .map_err(|e| DbError::Other(format!("atomic write failed for {path_key}: {e}")))?;
-        file_hashes::clear_pending(&self.conn, path_key)
-    }
-
 }
 
 #[cfg(test)]

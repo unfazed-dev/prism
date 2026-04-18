@@ -10,15 +10,12 @@ pub const STATE_COMPLETED: &str = "completed";
 pub const STATE_ABANDONED: &str = "abandoned";
 
 pub const SOURCE_DIRECTIVE: &str = "directive";
-pub const SOURCE_AUTOPILOT: &str = "autopilot";
 
 pub const KIND_ENRICH: &str = "ENRICH";
 pub const KIND_FIX_ICM: &str = "FIX_ICM";
 
 pub mod priority {
-    pub const IMMEDIATE: i64 = 10;
     pub const NORMAL: i64 = 50;
-    pub const LOW: i64 = 90;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,19 +118,6 @@ pub fn count_by_state(conn: &Connection, kind: &str, state: &str) -> Result<i64>
         |r| r.get(0),
     )
     .map_err(crate::DbError::from)
-}
-
-pub fn list_targets_in_state(conn: &Connection, kind: &str, state: &str) -> Result<Vec<String>> {
-    let mut stmt = conn.prepare(
-        "SELECT target_path FROM directive_log d1
-         WHERE kind = ?1 AND state = ?2
-           AND id = (SELECT MAX(id) FROM directive_log d2
-                     WHERE d2.target_path = d1.target_path AND d2.kind = d1.kind)",
-    )?;
-    let rows = stmt
-        .query_map(params![kind, state], |r| r.get::<_, String>(0))?
-        .collect::<std::result::Result<Vec<_>, _>>()?;
-    Ok(rows)
 }
 
 fn row_from_sqlite(r: &rusqlite::Row<'_>) -> rusqlite::Result<DirectiveLogRow> {
