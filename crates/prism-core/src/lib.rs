@@ -1,8 +1,11 @@
 //! prism-core — doc discovery, drift detection, scaffold, enrichment.
 
+pub mod command_runner;
 pub mod config;
 pub mod discovery;
 pub mod document;
+pub mod drift;
+pub mod enrich;
 pub mod freshness;
 pub mod frontmatter;
 pub mod hashing;
