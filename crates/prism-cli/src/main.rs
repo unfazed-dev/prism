@@ -1,5 +1,11 @@
 use clap::{Parser, Subcommand};
 
+mod cmd_enrich;
+mod cmd_hook;
+mod cmd_start;
+mod cmd_status;
+mod cmd_stop;
+
 #[derive(Parser)]
 #[command(name = "prism", version, about = "Claude Code doc-sync plugin")]
 struct Cli {
@@ -9,11 +15,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Install hooks and scaffold .prism/ in the current project
     Start,
+    /// Remove hooks from .claude/settings.json
     Stop,
+    /// Show drift and enrichment state
     Status,
+    /// Drain pending enrichment directives via Haiku
     Enrich,
+    /// Dispatch a Claude Code hook event (internal)
     Hook {
+        /// Event name: session-start | post-tool-use
         event: String,
     },
 }
@@ -25,10 +37,10 @@ fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     match cli.command {
-        Commands::Start => todo!("port from prism-old cmd_start"),
-        Commands::Stop => todo!("port from prism-old cmd_stop"),
-        Commands::Status => todo!("port from prism-old cmd_status"),
-        Commands::Enrich => todo!("port from prism-old cmd_enrich"),
-        Commands::Hook { event: _ } => todo!("port from prism-old cmd_hook (session-start + post-tool-use only)"),
+        Commands::Start => cmd_start::run(),
+        Commands::Stop => cmd_stop::run(),
+        Commands::Status => cmd_status::run(),
+        Commands::Enrich => cmd_enrich::run(),
+        Commands::Hook { event } => cmd_hook::run(&event),
     }
 }
