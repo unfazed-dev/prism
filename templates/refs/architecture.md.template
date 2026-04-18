@@ -1,0 +1,37 @@
+---
+title: "Architecture Overview"
+layer: L3b
+classification: architecture
+scope: "{{ scope | default('project') }}"
+tags: [architecture, design]
+dependencies: []
+---
+# Architecture Overview
+
+## System Context
+
+{{ system_context | default("*Describe the system's role in its broader environment.*") }}
+
+## Component Diagram
+
+{% if components %}| Component | Responsibility | Technology |
+|-----------|---------------|------------|
+{% for c in components %}| {{ c.name }} | {{ c.responsibility }} | {{ c.technology | default("") }} |
+{% endfor %}{% else %}*Document key system components here.*
+{% endif %}
+
+## Data Flow
+
+{{ data_flow | default("*Describe how data moves through the system.*") }}
+
+## Key Design Decisions
+
+{% if design_decisions %}{% for d in design_decisions %}- **{{ d.title }}**: {{ d.summary }}
+{% endfor %}{% else %}- See decision records in `.prism/PRISM.md`
+{% endif %}
+
+## Constraints
+
+{% if constraints %}{% for c in constraints %}- {{ c }}
+{% endfor %}{% else %}- *List architectural constraints (performance, compliance, platform).*
+{% endif %}

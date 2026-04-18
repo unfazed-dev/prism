@@ -1,0 +1,38 @@
+<!-- prism:managed -->
+# General Conventions
+
+> Project-wide conventions for {{ project_name | default("this project") }}.
+
+## Naming
+
+- Files: `{{ file_naming | default("kebab-case") }}`
+- Directories: `{{ dir_naming | default("kebab-case") }}`
+- ICM documents: `XX-name` prefix for ordered items (stages, refs, patterns)
+
+## Documentation
+
+- Every significant directory MUST have a `CLAUDE.md` and `CONTEXT.md` pair
+- `CLAUDE.md` describes what IS in the directory (static)
+- `CONTEXT.md` describes what is HAPPENING (dynamic, session-scoped)
+- L3b+ documents MUST have YAML frontmatter with: title, layer, classification
+- Hot-path documents (L0, L1, Distributed) use `<!-- prism:managed -->` markers only
+
+## Code Style
+
+{% if code_style %}{{ code_style }}{% else %}- Follow language-specific conventions
+- Prefer clarity over brevity
+- Keep functions focused and testable
+{% endif %}
+
+## Git
+
+- Commit messages: `type: description` (feat, fix, refactor, test, chore, docs)
+- Branch naming: `feature/description`, `fix/description`
+- No force-pushing to main/develop
+
+## PRISM Integration
+
+- Run `/prism:status` to check project health
+- Drift is auto-detected and fixed at session start
+- Decisions are auto-logged from conversation
+- Stage transitions are managed automatically via hooks

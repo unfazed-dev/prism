@@ -1,0 +1,33 @@
+<!-- prism:managed -->
+# Service Conventions
+
+> Conventions for service/business logic layers in {{ project_name | default("this project") }}.
+
+## Structure
+
+{% if service_structure %}{{ service_structure }}{% else %}- One service per domain concept
+- Services encapsulate business logic, not I/O
+- Use dependency injection for external dependencies
+{% endif %}
+
+## Naming
+
+- Service files: `{{ service_naming | default("<domain>_service") }}`
+- Method naming: verb-first (`create_user`, `validate_order`, `calculate_total`)
+- Error types: `<Domain>Error`
+
+## Patterns
+
+{% if patterns %}{% for p in patterns %}- {{ p }}
+{% endfor %}{% else %}- Services should be stateless where possible
+- Use Result/Either types for error handling
+- Avoid direct database access — use repository pattern
+- Log at service boundaries (entry/exit/error)
+{% endif %}
+
+## Testing
+
+- Unit test every public method
+- Mock external dependencies at service boundary
+- Test error paths, not just happy paths
+- Use property-based tests for validation logic

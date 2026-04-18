@@ -1,0 +1,28 @@
+<!-- prism:managed -->
+# {{ directory_name }} — Context
+
+> Runtime context for `{{ directory_path }}`.
+
+## Current Activity
+
+{{ activity | default("No active work in this directory.") }}
+
+## Recent Changes
+
+{% if recent_changes %}{% for change in recent_changes %}- {{ change.description }} ({{ change.file }})
+{% endfor %}{% else %}No recent changes tracked.
+{% endif %}
+
+## Related Decisions
+
+{% if decisions %}{% for d in decisions %}- **{{ d.id }}**: {{ d.decision }} (`{{ d.scope }}`)
+{% endfor %}{% else %}No directory-scoped decisions.
+{% endif %}
+
+## Routing Table
+
+{% if routes %}| Pattern | Handler | Notes |
+|---------|---------|-------|
+{% for r in routes %}| `{{ r.pattern }}` | `{{ r.handler }}` | {{ r.notes | default("") }} |
+{% endfor %}{% else %}*No routing table for this directory.*
+{% endif %}

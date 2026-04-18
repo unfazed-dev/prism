@@ -1,0 +1,52 @@
+<!-- prism:managed -->
+# PRISM Document Standard
+
+> Standards for all documents managed by PRISM in {{ project_name | default("this project") }}.
+
+## Document Pairs
+
+Every significant directory maintains two context files:
+- **CLAUDE.md** — "What IS here?" (static description, structure, conventions)
+- **CONTEXT.md** — "What's HAPPENING here?" (dynamic state, decisions, activity)
+
+## Layer-Aware Frontmatter
+
+| Layer | Frontmatter | Metadata Storage |
+|-------|-------------|------------------|
+| L0 (Foundation) | `<!-- prism:managed -->` marker only | prism.db |
+| L1 (Persistent) | `<!-- prism:managed -->` marker only | prism.db |
+| L2 (Session) | `<!-- prism:managed -->` marker only | prism.db |
+| L3a (Active) | Full YAML frontmatter | prism.db + file |
+| L3b (Extended) | Full YAML frontmatter | prism.db + file |
+| L4 (Ephemeral) | Full YAML frontmatter | prism.db + file |
+| Meta | Full YAML frontmatter | prism.db + file |
+| Distributed | `<!-- prism:managed -->` marker only | prism.db |
+
+## Required Frontmatter Fields (L3b+)
+
+```yaml
+---
+title: "Document Title"
+layer: L3b          # L3a, L3b, L4, Meta
+classification: reference  # core, architecture, api, guide, reference, decision, goal, progress, template, other
+scope: "project/module"
+tags: [tag1, tag2]
+dependencies: [doc-id-1, doc-id-2]
+---
+```
+
+## ICM Numbering
+
+Ordered items use `XX-name` prefix convention:
+- Stages: `01-spec/`, `02-implement/`, `03-deploy/`
+- Refs: `01-architecture.md`, `02-schema.md`
+- Contiguous numbering, no gaps
+- Gaps are auto-fixed during `/prism:start`
+
+## PRISM Authority
+
+PRISM has **full CRUD authority** over ALL managed documents:
+- Creates initial document pairs during `/prism:start`
+- Updates documents when drift is detected
+- Regenerates derived content on pre-commit
+- Classification (derived/authored) is informational only, not a behavior gate

@@ -1,0 +1,43 @@
+---
+title: "{{ domain | default('Domain') }} Knowledge"
+layer: L3b
+classification: reference
+scope: "{{ scope | default('project') }}"
+tags: [domain, knowledge]
+dependencies: []
+---
+# {{ domain | default("Domain") }} Knowledge
+
+## Overview
+
+{{ overview | default("*Describe the domain this project operates in.*") }}
+
+## Key Concepts
+
+{% if concepts %}{% for c in concepts %}### {{ c.name }}
+
+{{ c.description }}
+{% endfor %}{% else %}*Document domain-specific terms and concepts here.*
+{% endif %}
+
+## Business Rules
+
+{% if rules %}{% for r in rules %}- **{{ r.name }}**: {{ r.description }}
+{% endfor %}{% else %}- *Document business rules that affect implementation.*
+{% endif %}
+
+## Domain Events
+
+{% if events %}| Event | Trigger | Effect |
+|-------|---------|--------|
+{% for e in events %}| {{ e.name }} | {{ e.trigger }} | {{ e.effect | default("") }} |
+{% endfor %}{% else %}*Document significant domain events here.*
+{% endif %}
+
+## Glossary
+
+{% if glossary %}| Term | Definition |
+|------|------------|
+{% for g in glossary %}| **{{ g.term }}** | {{ g.definition }} |
+{% endfor %}{% else %}*Add domain-specific terms and their definitions.*
+{% endif %}

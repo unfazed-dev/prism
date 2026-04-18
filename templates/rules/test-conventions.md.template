@@ -1,0 +1,40 @@
+<!-- prism:managed -->
+# Test Conventions
+
+> Testing standards for {{ project_name | default("this project") }}.
+
+## Test Structure
+
+{% if test_structure %}{{ test_structure }}{% else %}- Tests live alongside source in `tests/` directories or `_test` suffixed files
+- Integration tests in dedicated `tests/` at crate/package level
+- E2E tests in workspace-level `tests/` directory
+{% endif %}
+
+## Naming
+
+- Test files: `{{ test_file_naming | default("<module>_test") }}`
+- Test functions: `test_<scenario>` — descriptive, not `test_1`
+- Test fixtures: reuse via shared helpers, not copy-paste
+
+## Practices
+
+- Write tests FIRST (TDD: Red -> Green -> Refactor)
+- Each test covers ONE behavior
+- No test pollution — each test creates its own state
+- Mock external dependencies, test real logic
+- Test error paths and edge cases, not just happy paths
+
+## Coverage Targets
+
+{% if coverage %}{{ coverage }}{% else %}- Core logic: aim for high coverage
+- I/O boundaries: integration tests
+- Templates: verify rendered output is valid markdown
+{% endif %}
+
+## Test Categories
+
+| Category | Scope | Speed |
+|----------|-------|-------|
+| Unit | Single function/method | < 10ms |
+| Integration | Module/crate boundary | < 100ms |
+| E2E | Full system flow | < 5s |

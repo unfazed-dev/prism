@@ -1,0 +1,32 @@
+<!-- prism:managed -->
+# View/ViewModel Conventions
+
+> Conventions for presentation layer in {{ project_name | default("this project") }}.
+
+## Structure
+
+{% if view_structure %}{{ view_structure }}{% else %}- Separate view logic from business logic
+- ViewModels transform domain data for display
+- Views are declarative and state-driven
+{% endif %}
+
+## Naming
+
+- View files: `{{ view_naming | default("<feature>_view") }}`
+- ViewModel files: `{{ viewmodel_naming | default("<feature>_viewmodel") }}`
+- State classes: `<Feature>State`
+
+## State Management
+
+{% if state_management %}{{ state_management }}{% else %}- ViewModels own and expose state
+- Views observe state reactively
+- Side effects flow through ViewModels only
+- No business logic in views
+{% endif %}
+
+## Guidelines
+
+- Keep views thin — delegate logic to ViewModels
+- Use composition over inheritance for reusable UI
+- Handle loading, error, and empty states explicitly
+- Accessibility: provide semantic labels for all interactive elements

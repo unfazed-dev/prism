@@ -1,0 +1,43 @@
+---
+title: "{{ pattern_name | default('Pattern Name') }}"
+layer: L3b
+classification: reference
+scope: "{{ scope | default('project') }}"
+tags: [pattern, structural]
+dependencies: []
+---
+# Pattern: {{ pattern_name | default("Pattern Name") }}
+
+## Summary
+
+{{ summary | default("*Describe this recurring pattern and when to apply it.*") }}
+
+## Structural Hash
+
+`{{ structural_hash | default("pending") }}`
+
+## Occurrences
+
+{% if occurrences %}| File | Context |
+|------|---------|
+{% for o in occurrences %}| `{{ o.path }}` | {{ o.context | default("") }} |
+{% endfor %}{% else %}*Pattern occurrences will be tracked here.*
+{% endif %}
+
+## Template
+
+```{{ language | default("") }}
+{{ template_code | default("// Pattern template placeholder") }}
+```
+
+## When to Apply
+
+{% if when_to_apply %}{% for w in when_to_apply %}- {{ w }}
+{% endfor %}{% else %}- *Describe scenarios where this pattern should be used.*
+{% endif %}
+
+## Anti-Patterns
+
+{% if anti_patterns %}{% for a in anti_patterns %}- {{ a }}
+{% endfor %}{% else %}- *Describe what NOT to do.*
+{% endif %}

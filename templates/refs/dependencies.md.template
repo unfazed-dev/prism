@@ -1,0 +1,37 @@
+---
+title: "Dependency Reference"
+layer: L3b
+classification: reference
+scope: "{{ scope | default('project') }}"
+tags: [dependencies, packages, libraries]
+dependencies: []
+---
+# Dependency Reference
+
+## Core Dependencies
+
+{% if core_deps %}| Package | Version | Purpose |
+|---------|---------|---------|
+{% for d in core_deps %}| `{{ d.name }}` | {{ d.version | default("latest") }} | {{ d.purpose | default("") }} |
+{% endfor %}{% else %}*Document core dependencies here.*
+{% endif %}
+
+## Dev Dependencies
+
+{% if dev_deps %}| Package | Version | Purpose |
+|---------|---------|---------|
+{% for d in dev_deps %}| `{{ d.name }}` | {{ d.version | default("latest") }} | {{ d.purpose | default("") }} |
+{% endfor %}{% else %}*Document dev dependencies here.*
+{% endif %}
+
+## External Services
+
+{% if services %}| Service | Purpose | Auth Method |
+|---------|---------|-------------|
+{% for s in services %}| {{ s.name }} | {{ s.purpose }} | {{ s.auth | default("") }} |
+{% endfor %}{% else %}*Document external service dependencies here.*
+{% endif %}
+
+## Update Policy
+
+{{ update_policy | default("- Review dependencies monthly\n- Security updates applied immediately\n- Major version upgrades require a decision record") }}

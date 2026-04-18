@@ -1,0 +1,36 @@
+<!-- prism:managed -->
+# {{ project_name }}
+
+> {{ project_description | default("Project description") }}
+
+## Tech Stack
+
+{% if tech_stack %}{% for tech in tech_stack %}- {{ tech }}
+{% endfor %}{% else %}- *Auto-detected during initialization*
+{% endif %}
+
+## Project Structure
+
+{% if key_subdirs %}{% for s in key_subdirs %}- `{{ s.name }}/`{% if s.has_context_file == "true" %} ([context]({{ s.name }}/CLAUDE.md)){% endif %} — {{ s.description }}
+{% endfor %}{% else %}*Run `/prism:status` to generate structure overview.*
+{% endif %}
+
+## Active Stage
+
+{% if active_stage %}**{{ active_stage }}** — {{ stage_description | default("") }}{% else %}No active stage. Stages are managed automatically via hooks.{% endif %}
+
+## Key Conventions
+
+{% if conventions %}{% for conv in conventions %}- {{ conv }}
+{% endfor %}{% else %}- See `.claude/rules/` for detailed conventions
+{% endif %}
+
+## Quick Reference
+
+| Resource | Location |
+|----------|----------|
+| Architecture | `.prism/refs/01-architecture.md` |
+| Schema | `.prism/refs/02-schema.md` |
+| Dependencies | `.prism/refs/03-dependencies.md` |
+| Decisions | `.prism/PRISM.md` |
+| Stage Status | `/prism:status` |

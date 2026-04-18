@@ -1,0 +1,32 @@
+<!-- prism:managed -->
+# {{ directory_name }}
+
+> {{ directory_description | default("Directory context") }}
+
+## Purpose
+
+{{ purpose | default("*Describe what this directory contains and its role in the project.*") }}
+
+## Key Files
+
+{% if key_files %}{% for f in key_files %}- `{{ f.name }}` — {{ f.description | default("") }}
+{% endfor %}{% else %}*No key files catalogued yet.*
+{% endif %}
+
+## Subdirectories
+
+{% if key_subdirs %}{% for s in key_subdirs %}- `{{ s.name }}/`{% if s.has_context_file == "true" %} ([context]({{ s.name }}/CLAUDE.md)){% endif %} — {{ s.description | default("") }}
+{% endfor %}{% else %}*No subdirectories detected.*
+{% endif %}
+
+## Conventions
+
+{% if conventions %}{% for conv in conventions %}- {{ conv }}
+{% endfor %}{% else %}- Follow project-level conventions in `.claude/rules/`
+{% endif %}
+
+## Dependencies
+
+{% if dependencies %}{% for dep in dependencies %}- {{ dep }}
+{% endfor %}{% else %}*No inter-directory dependencies tracked.*
+{% endif %}

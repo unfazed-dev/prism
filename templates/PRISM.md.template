@@ -1,0 +1,46 @@
+<!-- prism:managed -->
+# PRISM Status
+
+> System status for {{ project_name | default("this project") }}.
+> Generated at turn {{ current_turn | default("0") }}.
+
+## Active Goal
+
+{% if active_goal %}**{{ active_goal.description }}**
+- Scope: `{{ active_goal.scope }}`
+- Started: Turn {{ active_goal.started_turn | default("?") }}{% else %}No active goal.{% endif %}
+
+## Goal Stack
+
+{% if goals %}| # | Goal | Status | Scope |
+|---|------|--------|-------|
+{% for g in goals %}| {{ loop.index }} | {{ g.description }} | {{ g.status }} | `{{ g.scope }}` |
+{% endfor %}{% else %}Empty goal stack.
+{% endif %}
+
+## Decisions
+
+{% if decisions %}| ID | Decision | Scope | Active |
+|----|----------|-------|--------|
+{% for d in decisions %}| {{ d.id }} | {{ d.decision }} | `{{ d.scope }}` | {{ d.active }} |
+{% endfor %}{% else %}No decisions recorded.
+{% endif %}
+
+## Drift Summary
+
+{% if drift_counts %}- Info: {{ drift_counts.info }}
+- Warning: {{ drift_counts.warning }}
+- Critical: {{ drift_counts.critical }}{% else %}No drift data.{% endif %}
+
+## Document Registry
+
+{% if doc_count %}{{ doc_count }} documents tracked across {{ layer_count | default("?") }} layers.{% else %}Registry empty.{% endif %}
+
+## Configuration
+
+| Setting | Value |
+|---------|-------|
+| Version | {{ version | default("2.1.0") }} |
+| Default TTL | {{ default_ttl | default("30") }} turns |
+| Significance Threshold | {{ significance_threshold | default("3") }} |
+| Auto-sync | {{ auto_sync | default("enabled") }} |

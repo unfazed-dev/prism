@@ -1,0 +1,41 @@
+---
+title: "Data Schema Reference"
+layer: L3b
+classification: reference
+scope: "{{ scope | default('project') }}"
+tags: [schema, data, database]
+dependencies: []
+---
+# Data Schema Reference
+
+## Overview
+
+{{ overview | default("*Describe the data model and its primary entities.*") }}
+
+## Entities
+
+{% if entities %}{% for e in entities %}### {{ e.name }}
+
+{{ e.description | default("") }}
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+{% for f in e.fields %}| `{{ f.name }}` | {{ f.type }} | {{ f.required | default("yes") }} | {{ f.notes | default("") }} |
+{% endfor %}
+
+{% endfor %}{% else %}*Document entities and their fields here.*
+{% endif %}
+
+## Relationships
+
+{% if relationships %}| From | To | Type | Description |
+|------|----|------|-------------|
+{% for r in relationships %}| {{ r.from }} | {{ r.to }} | {{ r.type }} | {{ r.description | default("") }} |
+{% endfor %}{% else %}*Document entity relationships here.*
+{% endif %}
+
+## Migrations
+
+{% if migration_notes %}{{ migration_notes }}{% else %}- Track schema changes through migration files
+- Never modify production data directly
+{% endif %}
