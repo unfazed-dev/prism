@@ -10,6 +10,7 @@ pub mod freshness;
 pub mod frontmatter;
 pub mod hashing;
 pub mod hierarchy;
+pub mod hooks;
 pub mod templates;
 
 use std::path::{Path, PathBuf};
