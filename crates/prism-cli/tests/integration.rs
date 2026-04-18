@@ -98,8 +98,27 @@ fn start_status_hook_pipeline() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.starts_with('{') && stdout.ends_with('}'), "not JSON: {stdout}");
 
-    // prism stop
+    // prism stop removes the hooks block from settings.json
     prism(root).arg("stop").assert().success();
+    let settings: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(root.join(".claude/settings.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        settings.get("hooks").is_none(),
+        "hooks block should be removed: {settings}"
+    );
+
+    // Assert schema budget: <= 6 tables (plan verification bullet).
+    let conn = rusqlite::Connection::open(root.join(".prism/prism.db")).unwrap();
+    let table_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(table_count <= 6, "schema budget exceeded: {table_count} tables");
 }
 
 #[test]

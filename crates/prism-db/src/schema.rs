@@ -10,11 +10,6 @@ pub fn create_all_tables(conn: &Connection) -> Result<()> {
 }
 
 const ALL_TABLES_DDL: &str = r#"
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    version TEXT PRIMARY KEY,
-    applied_at TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS document_registry (
     doc_id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
