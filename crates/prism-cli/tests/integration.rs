@@ -120,22 +120,34 @@ fn enrich_without_claude_cli_bails() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path();
     prism(root).arg("start").assert().success();
+
+    // Force a pending directive so `enrich` reaches the preflight.
+    let src_rel = "src/foo.rs";
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join(src_rel), "fn x() {}\n").unwrap();
+    let hook_json = format!(
+        r#"{{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{{"file_path":"{}"}},"session_id":"s"}}"#,
+        src_rel
+    );
+    let h = run_hook(root, "post-tool-use", &hook_json);
+    assert!(h.status.success());
+
     // Invoke with an empty PATH so `claude` is unreachable.
     let output = prism(root)
         .arg("enrich")
         .env("PATH", "")
         .output()
         .expect("enrich output");
-    // No pending directives OR missing claude → both are fine outcomes for this test.
-    // What we assert: process exits cleanly on "no pending", or exits non-zero
-    // with an actionable message on missing claude.
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            stderr.contains("claude") || stderr.contains("PRISM not initialized"),
-            "unexpected stderr: {stderr}"
-        );
-    }
+    assert!(
+        !output.status.success(),
+        "enrich should bail without claude on PATH; stdout={:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("claude") && stderr.contains("PATH"),
+        "expected actionable claude/PATH error, got: {stderr}"
+    );
 }
 
 #[test]
