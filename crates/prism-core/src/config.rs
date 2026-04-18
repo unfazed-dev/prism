@@ -69,31 +69,14 @@ impl PrismConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum InitialScaffoldMode {
-    TemplateOnly,
-    HaikuBackground,
-    #[default]
-    HaikuBlocking,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnrichmentConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
-    #[serde(default = "default_batch_size")]
-    pub batch_size: usize,
     #[serde(default = "default_max_retries")]
     pub max_retries: u32,
     #[serde(default)]
-    pub initial_scaffold_mode: InitialScaffoldMode,
-    #[serde(default)]
     pub autopilot: AutopilotConfig,
-}
-
-fn default_batch_size() -> usize {
-    5
 }
 
 fn default_max_retries() -> u32 {
@@ -104,9 +87,7 @@ impl Default for EnrichmentConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            batch_size: default_batch_size(),
             max_retries: default_max_retries(),
-            initial_scaffold_mode: InitialScaffoldMode::default(),
             autopilot: AutopilotConfig::default(),
         }
     }
