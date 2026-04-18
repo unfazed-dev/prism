@@ -1,0 +1,11 @@
+{
+  "name": "prism",
+  "version": "0.1.0",
+  "description": "Claude Code doc-sync plugin. Keeps CLAUDE.md and CONTEXT.md files in sync with the codebase via drift detection and Haiku enrichment.",
+  "author": { "name": "Evan" },
+  "license": "MIT",
+  "engines": {
+    "claude_code": ">=1.0.0"
+  },
+  "skills": "./skills"
+}
