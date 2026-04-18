@@ -62,19 +62,6 @@ pub struct PrismConfig {
     /// Discovery scan parameters.
     #[serde(default)]
     pub discovery: DiscoveryConfig,
-
-    /// Filesystem watcher daemon settings.
-    #[serde(default)]
-    pub watcher: WatcherConfig,
-
-    /// Hook-injection throttling (cooldowns, suppression notices).
-    #[serde(default)]
-    pub hooks: HooksConfig,
-
-    /// Pre-configured stage definitions.
-    /// Stages are auto-activated by the session-start hook based on these definitions.
-    #[serde(default)]
-    pub stages: Vec<StageDefinition>,
 }
 
 fn default_true() -> bool {
@@ -84,9 +71,8 @@ fn default_true() -> bool {
 impl Default for PrismConfig {
     fn default() -> Self {
         Self {
-            version: "2.1.0".to_string(),
+            version: "0.1.0".to_string(),
             enabled: true,
-            stages: Vec::new(),
             dependencies: DependenciesConfig::default(),
             context: ContextConfig::default(),
             freshness: FreshnessConfig::default(),
@@ -97,8 +83,6 @@ impl Default for PrismConfig {
             project: ProjectConfig::default(),
             enrichment: EnrichmentConfig::default(),
             discovery: DiscoveryConfig::default(),
-            watcher: WatcherConfig::default(),
-            hooks: HooksConfig::default(),
         }
     }
 }
@@ -141,28 +125,6 @@ impl PrismConfig {
             }
         }
     }
-}
-
-// ---------------------------------------------------------------------------
-// Stage definitions
-// ---------------------------------------------------------------------------
-
-/// A pre-configured stage definition in config.json.
-/// The session-start hook auto-activates stages from these definitions.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StageDefinition {
-    /// Stage name (e.g. "01_spec", "02_implement"; legacy `NN-name` accepted).
-    /// Auto-numbered if no prefix.
-    pub name: String,
-    /// Glob pattern restricting which files this stage covers (e.g. "docs/*", "src/*").
-    #[serde(default)]
-    pub scope: Option<String>,
-    /// Whether to deny writes outside scope (true) or just warn (false).
-    #[serde(default)]
-    pub strict: bool,
-    /// Gate conditions — descriptions of what must be true to complete this stage.
-    #[serde(default)]
-    pub gates: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -544,43 +506,6 @@ impl Default for AutopilotConfig {
     }
 }
 
-/// Hook-injection throttling.
-///
-/// Controls how aggressively the user-prompt-submit and session-start hooks
-/// emit `[PRISM:ASK]` directives. The defaults aim to keep auto-detected
-/// decisions and goals visible without drowning the user in confirmation
-/// prompts when they discuss design in prose.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HooksConfig {
-    /// Seconds to wait before re-emitting a `[PRISM:ASK]` for the same
-    /// `(hook_name, reason_code)` tuple inside a session. `0` disables the
-    /// cooldown entirely (preserve pre-Risk-4 behaviour).
-    #[serde(default = "default_cooldown_secs")]
-    pub cooldown_secs: u64,
-    /// After this many suppressions on the same reason code within a session,
-    /// session_start prints a one-line notice suggesting the user tune the
-    /// pattern list (e.g. if "let's go with" is matching too aggressively).
-    #[serde(default = "default_suppression_notice_threshold")]
-    pub suppression_notice_threshold: i64,
-}
-
-fn default_cooldown_secs() -> u64 {
-    120
-}
-
-fn default_suppression_notice_threshold() -> i64 {
-    5
-}
-
-impl Default for HooksConfig {
-    fn default() -> Self {
-        Self {
-            cooldown_secs: default_cooldown_secs(),
-            suppression_notice_threshold: default_suppression_notice_threshold(),
-        }
-    }
-}
-
 /// Discovery scan parameters for project structure analysis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoveryConfig {
@@ -598,11 +523,6 @@ pub struct DiscoveryConfig {
     pub scan_on_session_start: bool,
     /// Re-scan when structural file changes are detected.
     pub scan_on_structural_change: bool,
-    /// When true, `prism start` silently renumbers `.prism/refs` + `.prism/stages`
-    /// to close numbering gaps. When false (default for 2.3.0+), that work is
-    /// surfaced through the preflight/apply flow so the user sees and approves it.
-    #[serde(default)]
-    pub auto_renumber_icm_managed_silently: bool,
     /// Opt-in: skip proactive CLAUDE.md/CONTEXT.md scaffolding during
     /// `sync-docs`. When true, pairs are created only when the user actually
     /// edits a file inside a significant directory (post_tool_use hook
@@ -658,96 +578,7 @@ impl Default for DiscoveryConfig {
             ],
             scan_on_session_start: true,
             scan_on_structural_change: true,
-            auto_renumber_icm_managed_silently: false,
             lazy_doc_pair_creation: false,
-        }
-    }
-}
-
-/// Filesystem watcher daemon settings.
-///
-/// The watcher runs out-of-process (spawned by `prism start`) and keeps the
-/// `directive_log` queue populated even when Claude Code is idle.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WatcherConfig {
-    /// Whether the watcher daemon is enabled. Defaults to `true`; users who
-    /// want hook-only mode can set this to `false` in `.prism/config.json`.
-    #[serde(default = "default_watcher_enabled")]
-    pub enabled: bool,
-    /// Debounce window in milliseconds — merges burst events into single ops.
-    #[serde(default = "default_watcher_debounce_ms")]
-    pub debounce_ms: u64,
-    /// Directory names the watcher ignores (in addition to `.gitignore`).
-    #[serde(default = "default_watcher_skip_directories")]
-    pub skip_directories: Vec<String>,
-    /// Maximum events processed per batch before yielding the control loop.
-    #[serde(default = "default_watcher_max_batch")]
-    pub max_events_per_batch: usize,
-    /// Heartbeat interval in seconds for `watcher.status.json`.
-    #[serde(default = "default_watcher_heartbeat_secs")]
-    pub heartbeat_secs: u64,
-    /// Per-directory debounce for inline enrich. Events on files in a
-    /// directory accumulate; enrich fires only after this many milliseconds
-    /// elapse without a new event. Prevents Haiku spam from IDE auto-save,
-    /// `cargo fmt`, batch git checkouts, etc.
-    #[serde(default = "default_enrich_debounce_ms")]
-    pub enrich_debounce_ms: u64,
-    /// Hard cap on inline enrich invocations per rolling 60-second window.
-    /// Directories exceeding this limit defer their enrich until the window
-    /// moves. Acts as a cost ceiling on Haiku usage.
-    #[serde(default = "default_max_enrich_per_minute")]
-    pub max_enrich_per_minute: u32,
-}
-
-fn default_watcher_enabled() -> bool {
-    true
-}
-
-fn default_watcher_debounce_ms() -> u64 {
-    500
-}
-
-fn default_watcher_skip_directories() -> Vec<String> {
-    vec![
-        ".git".into(),
-        "node_modules".into(),
-        "target".into(),
-        ".prism".into(),
-        ".venv".into(),
-        "dist".into(),
-        "build".into(),
-    ]
-}
-
-fn default_watcher_max_batch() -> usize {
-    100
-}
-
-fn default_watcher_heartbeat_secs() -> u64 {
-    30
-}
-
-fn default_enrich_debounce_ms() -> u64 {
-    3000
-}
-
-fn default_max_enrich_per_minute() -> u32 {
-    // Conservative cap: at Haiku pricing a dense editing session could
-    // otherwise burn ~$5/hr. Users running CI-driven or burst workloads can
-    // raise it in .prism/config.json.
-    10
-}
-
-impl Default for WatcherConfig {
-    fn default() -> Self {
-        Self {
-            enabled: default_watcher_enabled(),
-            debounce_ms: default_watcher_debounce_ms(),
-            skip_directories: default_watcher_skip_directories(),
-            max_events_per_batch: default_watcher_max_batch(),
-            heartbeat_secs: default_watcher_heartbeat_secs(),
-            enrich_debounce_ms: default_enrich_debounce_ms(),
-            max_enrich_per_minute: default_max_enrich_per_minute(),
         }
     }
 }

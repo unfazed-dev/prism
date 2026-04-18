@@ -1,4 +1,4 @@
-//! Drift detection across PRISM's six dimensions.
+//! Drift detection.
 //!
 //! Drift occurs when the actual state of a document, index, or session diverges
 //! from the expected state. This module defines the drift model and detection
@@ -7,7 +7,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// The six dimensions along which drift can occur.
+/// The dimensions along which drift can occur.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DriftDimension {
     /// Index drift — the master index is out of sync with files on disk.
@@ -16,8 +16,6 @@ pub enum DriftDimension {
     Session,
     /// Layer-3 drift — active context documents have diverged from source.
     Layer3,
-    /// Stage drift — project stage metadata is inconsistent with actual progress.
-    Stage,
     /// Dependency drift — declared dependencies between documents are broken.
     Dependency,
     /// Context drift — context snapshots no longer reflect current state.
@@ -48,8 +46,6 @@ pub enum DriftType {
     BrokenDependency,
     /// Session references a document that has been modified since load.
     StaleReference,
-    /// Stage metadata conflicts with document state.
-    StageInconsistency,
     /// A CLAUDE.md or CONTEXT.md is missing from a significant directory.
     MissingContextFile,
     /// Context file content is outdated relative to source files.
@@ -270,46 +266,6 @@ pub fn detect_session_drift(
         .collect()
 }
 
-/// Detect stage drift — active stages with no recent file activity in scope, or
-/// stages that have been open longer than expected.
-///
-/// `active_stages` contains (stage_name, scope_pattern, started_at).
-/// `recent_file_paths` is the set of files modified in the current session.
-#[tracing::instrument(skip_all)]
-pub fn detect_stage_drift(
-    active_stages: &[(String, Option<String>, String)],
-    recent_file_paths: &[String],
-    now: DateTime<Utc>,
-) -> Vec<DriftRecord> {
-    let mut records = Vec::new();
-
-    for (stage_name, scope_pattern, _started_at) in active_stages {
-        // If stage has a scope, check whether any recent activity is within that scope
-        if let Some(scope) = scope_pattern {
-            let scope_prefix = scope.trim_end_matches('*').trim_end_matches('/');
-            let has_activity = recent_file_paths
-                .iter()
-                .any(|p| p.starts_with(scope_prefix));
-
-            if !has_activity && !recent_file_paths.is_empty() {
-                records.push(DriftRecord {
-                    dimension: DriftDimension::Stage,
-                    drift_type: DriftType::StageInconsistency,
-                    severity: DriftSeverity::Warning,
-                    message: format!(
-                        "Stage `{stage_name}` scoped to `{scope}` but no recent activity in scope"
-                    ),
-                    affected_paths: vec![stage_name.clone()],
-                    detected_at: now,
-                    resolved: false,
-                });
-            }
-        }
-    }
-
-    records
-}
-
 /// Detect layer-3 drift — significant directories that are missing CLAUDE.md or CONTEXT.md.
 ///
 /// `significant_dirs` are directories that should have context files.
@@ -372,8 +328,6 @@ pub fn classify_severity(dimension: DriftDimension, drift_type: &DriftType) -> D
     match (dimension, drift_type) {
         // Broken dependencies are always critical
         (_, DriftType::BrokenDependency) => DriftSeverity::Critical,
-        // Stage inconsistencies are critical
-        (DriftDimension::Stage, _) => DriftSeverity::Critical,
         // Missing context files are warnings
         (_, DriftType::MissingContextFile) => DriftSeverity::Warning,
         // Stale references are warnings
@@ -410,43 +364,6 @@ mod tests {
         let now = Utc::now();
         let items = vec![("doc1.md".to_string(), "current".to_string())];
         let drift = detect_session_drift(&items, "current", now);
-        assert!(drift.is_empty());
-    }
-
-    #[test]
-    fn test_stage_drift_detects_out_of_scope_activity() {
-        let now = Utc::now();
-        let stages = vec![(
-            "implement".to_string(),
-            Some("src/auth/*".to_string()),
-            "2026-01-01".to_string(),
-        )];
-        // Activity outside scope
-        let recent = vec!["lib/utils.rs".to_string(), "tests/test.rs".to_string()];
-        let drift = detect_stage_drift(&stages, &recent, now);
-        assert_eq!(drift.len(), 1);
-        assert_eq!(drift[0].dimension, DriftDimension::Stage);
-    }
-
-    #[test]
-    fn test_stage_drift_no_drift_when_in_scope() {
-        let now = Utc::now();
-        let stages = vec![(
-            "implement".to_string(),
-            Some("src/auth/*".to_string()),
-            "2026-01-01".to_string(),
-        )];
-        let recent = vec!["src/auth/login.rs".to_string()];
-        let drift = detect_stage_drift(&stages, &recent, now);
-        assert!(drift.is_empty());
-    }
-
-    #[test]
-    fn test_stage_drift_no_scope_no_drift() {
-        let now = Utc::now();
-        let stages = vec![("implement".to_string(), None, "2026-01-01".to_string())];
-        let recent = vec!["anything.rs".to_string()];
-        let drift = detect_stage_drift(&stages, &recent, now);
         assert!(drift.is_empty());
     }
 
