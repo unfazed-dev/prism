@@ -5,6 +5,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::{DbError, Result};
 
+pub const DRIFT_TYPE_ICM: &str = "IcmViolation";
+pub const DRIFT_TYPE_OUTDATED: &str = "OutdatedContextFile";
+
+/// Count unresolved drift rows whose `drift_type` matches.
+pub fn count_unresolved_by_type(conn: &Connection, drift_type: &str) -> Result<i64> {
+    conn.query_row(
+        "SELECT COUNT(*) FROM doc_drift WHERE drift_type = ?1 AND resolved = 0",
+        params![drift_type],
+        |r| r.get(0),
+    )
+    .map_err(DbError::from)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocDriftRow {
     pub drift_id: Option<i64>,

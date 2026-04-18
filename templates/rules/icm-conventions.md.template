@@ -1,0 +1,32 @@
+<!-- prism:managed -->
+# ICM (Interpreted Context Methodology) Conventions
+
+> How PRISM expects documentation files in this project to be shaped.
+> Canonical spec: https://github.com/RinDig/Interpreted-Context-Methdology
+
+## Layer model
+
+- **L0** — `CLAUDE.md` at the project root. Static description of what IS here.
+- **L1** — `CONTEXT.md` at the project root. Routing index, not content. Points to L2 stages.
+- **L2** — `CONTEXT.md` inside each stage folder `NN-slug/`. Describes the stage's Inputs, Process, Outputs.
+
+## Mechanical rules PRISM enforces
+
+- `L0_EXISTS` — exactly one `CLAUDE.md` at the project root.
+- `L1_EXISTS` — exactly one `CONTEXT.md` at the project root.
+- `L2_ONE_PER_STAGE` — every `NN-slug/` stage folder must contain a `CONTEXT.md`.
+- `STAGE_FOLDER_SHAPE` — stage folders match `^\d{2}-[a-z0-9-]+$`, numbered sequentially from `01`, no gaps. Hyphen is the canonical separator.
+- `CONTEXT_LINE_BUDGET` — `CONTEXT.md` files must stay under 80 lines; files under `refs/` or `.prism/refs/` stay under 200 lines.
+- `STAGE_CONTEXT_SECTIONS` — stage-level `CONTEXT.md` must contain headings `## Inputs`, `## Process`, `## Outputs`.
+- `INPUTS_TABLE_COLUMNS` — if the `Inputs` section has a markdown table, its columns must be exactly `Source | File/Location | Section/Scope | Why`.
+- `NO_EM_DASH` — em dashes (U+2014) are banned in managed markdown files; use a hyphen-minus (`-`) or rephrase.
+
+## When you author or edit a managed markdown file
+
+1. Keep the `<!-- prism:managed -->` marker on line 1.
+2. Put static description in `CLAUDE.md`, dynamic routing in `CONTEXT.md`.
+3. Under stage folders, follow the Inputs / Process / Outputs shape.
+4. Never use em dashes.
+5. Keep `CONTEXT.md` terse — link outward, do not duplicate `CLAUDE.md` structure.
+
+PRISM will detect violations via the PostToolUse hook, record them in the database, and queue a Haiku fix (`/prism:fix`). For a read-only audit run `/prism:lint`.

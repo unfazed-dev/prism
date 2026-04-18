@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use crate::hashing::hash_file;
 use crate::hooks::protocol::{extract_file_path, HookContext, HookInput, HookOutput};
 use crate::hooks::HookError;
+use crate::icm::{self, IcmSettings, Scope};
 use prism_db::{directive_log, doc_drift, document_registry, PrismDb};
 
 pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError> {
@@ -41,8 +42,11 @@ pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError
         db.upsert_file_hash(&rel_path, &new_hash)?;
     }
 
-    // Skip re-entrancy: edits to managed docs themselves should not trigger drift.
-    if rel_path.ends_with("CLAUDE.md") || rel_path.ends_with("CONTEXT.md") {
+    // For edits to managed markdown docs themselves, run the ICM validator
+    // instead of the source-change-drift path. Short-circuit after.
+    let is_managed_md = rel_path.ends_with("CLAUDE.md") || rel_path.ends_with("CONTEXT.md");
+    if is_managed_md {
+        run_icm_validation(&db, &ctx.project_root, &rel_path, &ctx.session_id)?;
         return Ok(HookOutput::allow(None));
     }
 
@@ -109,6 +113,63 @@ pub fn run(input: &HookInput, ctx: &HookContext) -> Result<HookOutput, HookError
     }
 
     Ok(HookOutput::allow(None))
+}
+
+/// Run ICM validator over the edited managed doc, record violations into
+/// `doc_drift`, and enqueue a dedupe-aware `FIX_ICM` directive.
+fn run_icm_validation(
+    db: &PrismDb,
+    project_root: &Path,
+    rel_path: &str,
+    session_id: &str,
+) -> Result<(), HookError> {
+    let violations = icm::validate_icm(
+        project_root,
+        &Scope::File(PathBuf::from(rel_path)),
+        IcmSettings::default(),
+    );
+    if violations.is_empty() {
+        return Ok(());
+    }
+    for v in &violations {
+        doc_drift::insert(
+            db.conn(),
+            &doc_drift::DocDriftRow {
+                drift_id: None,
+                session_id: session_id.to_string(),
+                detected_turn: 0,
+                affected_doc: rel_path.to_string(),
+                drift_type: doc_drift::DRIFT_TYPE_ICM.to_string(),
+                severity: "warning".to_string(),
+                description: format!("{}: {}", v.rule.id(), v.message),
+                resolved: false,
+                resolved_by: None,
+                resolved_at: None,
+            },
+        )?;
+    }
+    let already_queued = matches!(
+        directive_log::latest_for_target(db.conn(), rel_path, directive_log::KIND_FIX_ICM)?,
+        Some(row) if row.state == directive_log::STATE_PENDING
+    );
+    if !already_queued {
+        directive_log::insert(
+            db.conn(),
+            &directive_log::DirectiveLogRow {
+                id: None,
+                kind: directive_log::KIND_FIX_ICM.into(),
+                target_path: rel_path.to_string(),
+                session_id: session_id.to_string(),
+                emitted_at: chrono::Utc::now().timestamp(),
+                completed_at: None,
+                retry_count: 0,
+                state: directive_log::STATE_PENDING.into(),
+                source: directive_log::SOURCE_DIRECTIVE.into(),
+                priority: directive_log::priority::NORMAL,
+            },
+        )?;
+    }
+    Ok(())
 }
 
 /// Collect absolute parent dirs of every registered CLAUDE.md in the registry.

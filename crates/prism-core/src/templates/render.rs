@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn test_rules_list() {
         let rules = TemplateName::rules();
-        assert_eq!(rules.len(), 5);
+        assert_eq!(rules.len(), 6);
     }
 
     #[test]

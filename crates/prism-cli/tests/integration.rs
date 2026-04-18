@@ -170,6 +170,105 @@ fn enrich_without_claude_cli_bails() {
 }
 
 #[test]
+fn icm_lint_clean_project_succeeds() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    prism(root).arg("start").assert().success();
+    prism(root)
+        .arg("lint")
+        .assert()
+        .success()
+        .stdout(str::contains("ICM: clean"));
+}
+
+#[test]
+fn icm_lint_detects_missing_context_md() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    prism(root).arg("start").assert().success();
+    std::fs::remove_file(root.join("CONTEXT.md")).unwrap();
+
+    let output = prism(root).arg("lint").output().expect("lint output");
+    assert!(!output.status.success(), "lint should exit non-zero");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("L1_EXISTS"), "stdout: {stdout}");
+}
+
+#[test]
+fn icm_violation_detected_and_queued_by_hook() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    prism(root).arg("start").assert().success();
+
+    // Seed a clearly-violating stage CONTEXT.md: missing Inputs/Process/Outputs,
+    // em dash present, 100-line body.
+    let stage = root.join("01-discovery");
+    std::fs::create_dir_all(&stage).unwrap();
+    let rel = "01-discovery/CONTEXT.md";
+    let body: String = (0..100)
+        .map(|_| "body \u{2014} line\n")
+        .collect::<String>();
+    std::fs::write(root.join(rel), format!("# bad\n{body}")).unwrap();
+
+    let hook_json = format!(
+        r#"{{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{{"file_path":"{}"}},"session_id":"s"}}"#,
+        rel
+    );
+    let out = run_hook(root, "post-tool-use", &hook_json);
+    assert!(out.status.success(), "hook failed: {out:?}");
+
+    // status should reflect at least one icm violation and one pending fix
+    let stdout = String::from_utf8(
+        prism(root)
+            .arg("status")
+            .output()
+            .expect("status output")
+            .stdout,
+    )
+    .unwrap();
+    assert!(stdout.contains("icm violations:"), "{stdout}");
+    assert!(stdout.contains("pending fix:"), "{stdout}");
+    assert!(
+        !stdout.contains("icm violations:    0"),
+        "expected >0 icm violations: {stdout}"
+    );
+    assert!(
+        !stdout.contains("pending fix:       0"),
+        "expected >0 pending fix: {stdout}"
+    );
+}
+
+#[test]
+fn prism_fix_without_claude_cli_bails() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    prism(root).arg("start").assert().success();
+
+    // Seed one violating managed md + hook to queue a FIX_ICM directive.
+    std::fs::create_dir_all(root.join("01-discovery")).unwrap();
+    let rel = "01-discovery/CONTEXT.md";
+    std::fs::write(root.join(rel), "# bad\n").unwrap();
+    let hook_json = format!(
+        r#"{{"hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{{"file_path":"{}"}},"session_id":"s"}}"#,
+        rel
+    );
+    let h = run_hook(root, "post-tool-use", &hook_json);
+    assert!(h.status.success());
+
+    let output = prism(root)
+        .arg("fix")
+        .env("PATH", "")
+        .output()
+        .expect("fix output");
+    assert!(
+        !output.status.success(),
+        "fix should bail without claude on PATH"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("claude") && stderr.contains("PATH"), "{stderr}");
+}
+
+#[test]
 fn status_on_uninitialized_project() {
     let tmp = TempDir::new().unwrap();
     prism(tmp.path())

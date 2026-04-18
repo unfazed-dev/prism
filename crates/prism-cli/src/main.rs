@@ -1,7 +1,9 @@
 use clap::{Parser, Subcommand};
 
 mod cmd_enrich;
+mod cmd_fix;
 mod cmd_hook;
+mod cmd_lint;
 mod cmd_start;
 mod cmd_status;
 mod cmd_stop;
@@ -23,6 +25,10 @@ enum Commands {
     Status,
     /// Drain pending enrichment directives via Haiku
     Enrich,
+    /// Audit the project for ICM spec violations (read-only)
+    Lint,
+    /// Drain pending ICM fix directives via Haiku
+    Fix,
     /// Dispatch a Claude Code hook event (internal)
     Hook {
         /// Event name: session-start | post-tool-use
@@ -41,6 +47,8 @@ fn main() -> anyhow::Result<()> {
         Commands::Stop => cmd_stop::run(),
         Commands::Status => cmd_status::run(),
         Commands::Enrich => cmd_enrich::run(),
+        Commands::Lint => cmd_lint::run(),
+        Commands::Fix => cmd_fix::run(),
         Commands::Hook { event } => cmd_hook::run(&event),
     }
 }

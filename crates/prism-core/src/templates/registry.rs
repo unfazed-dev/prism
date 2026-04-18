@@ -17,6 +17,7 @@ pub enum TemplateName {
     RulesViewModel,
     RulesTest,
     RulesDocumentStandard,
+    RulesIcm,
 
     RefsArchitecture,
     RefsSchema,
@@ -39,6 +40,7 @@ impl TemplateName {
             Self::RulesViewModel => "rules/viewmodel-conventions.md",
             Self::RulesTest => "rules/test-conventions.md",
             Self::RulesDocumentStandard => "rules/prism-document-standard.md",
+            Self::RulesIcm => "rules/icm-conventions.md",
             Self::RefsArchitecture => "refs/architecture.md",
             Self::RefsSchema => "refs/schema.md",
             Self::RefsDependencies => "refs/dependencies.md",
@@ -60,6 +62,7 @@ impl TemplateName {
             Self::RulesViewModel => "viewmodel-conventions.md",
             Self::RulesTest => "test-conventions.md",
             Self::RulesDocumentStandard => "prism-document-standard.md",
+            Self::RulesIcm => "icm-conventions.md",
             Self::RefsArchitecture => "architecture.md",
             Self::RefsSchema => "schema.md",
             Self::RefsDependencies => "dependencies.md",
@@ -81,6 +84,7 @@ impl TemplateName {
             Self::RulesViewModel,
             Self::RulesTest,
             Self::RulesDocumentStandard,
+            Self::RulesIcm,
             Self::RefsArchitecture,
             Self::RefsSchema,
             Self::RefsDependencies,
@@ -96,6 +100,7 @@ impl TemplateName {
             Self::RulesViewModel,
             Self::RulesTest,
             Self::RulesDocumentStandard,
+            Self::RulesIcm,
         ]
     }
 
@@ -132,6 +137,9 @@ pub fn get_template_source(name: TemplateName) -> &'static str {
         }
         TemplateName::RulesDocumentStandard => {
             include_str!("../../../../templates/rules/prism-document-standard.md.template")
+        }
+        TemplateName::RulesIcm => {
+            include_str!("../../../../templates/rules/icm-conventions.md.template")
         }
         TemplateName::RefsArchitecture => {
             include_str!("../../../../templates/refs/architecture.md.template")

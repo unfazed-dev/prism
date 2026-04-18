@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use crate::command_runner::{CommandRunner, RunResult, SystemRunner};
 use crate::config::AutopilotConfig;
+use crate::icm::IcmViolation;
 use crate::PrismError;
 
 const ENRICHED_MARKER: &str = "<!-- prism:enriched -->";
@@ -212,6 +213,129 @@ pub fn build_enrichment_prompt(dir: &Path, project_root: &Path) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// ICM fix-mode
+// ---------------------------------------------------------------------------
+
+/// Outcome of a single `FIX_ICM` directive.
+#[derive(Debug, Clone)]
+pub enum IcmFixOutcome {
+    /// Haiku rewrote the file and re-validation returned zero violations.
+    Resolved { file: PathBuf },
+    /// Subprocess ran zero-exit but violations remain.
+    StillViolated {
+        file: PathBuf,
+        remaining: Vec<IcmViolation>,
+    },
+    /// Subprocess exceeded `cfg.timeout_secs`.
+    TimedOut { file: PathBuf },
+    /// Subprocess exited non-zero.
+    Failed { file: PathBuf, stderr: String },
+}
+
+/// Build the prompt Haiku uses to fix a single managed markdown file.
+pub fn build_icm_fix_prompt(rel_path: &Path, violations: &[IcmViolation]) -> String {
+    let rules: Vec<String> = violations
+        .iter()
+        .map(|v| format!("- {}: {}", v.rule.id(), v.message))
+        .collect();
+    format!(
+        "The file `{rel}` violates the ICM (Interpreted Context Methodology) spec.\n\
+         \n\
+         Violated rules:\n\
+         {rules}\n\
+         \n\
+         Canonical spec: https://github.com/RinDig/Interpreted-Context-Methdology/blob/main/_core/CONVENTIONS.md\n\
+         \n\
+         Fix the file in place. Preserve the `<!-- prism:managed -->` marker on line 1 if present. Do not introduce em dashes (U+2014). CONTEXT.md files should stay routing-only (links + short prose), not duplicate structure from CLAUDE.md. Stage-level CONTEXT.md files must contain headings `## Inputs`, `## Process`, `## Outputs`. Keep CONTEXT.md files under 80 lines.\n\
+         \n\
+         Return the corrected file content only.",
+        rel = rel_path.display(),
+        rules = rules.join("\n"),
+    )
+}
+
+/// Run a single `FIX_ICM` directive against the given managed markdown file.
+///
+/// Re-runs [`validate_icm`] after the subprocess completes to decide the
+/// outcome.
+pub fn fix_icm_file(
+    project_root: &Path,
+    rel_path: &Path,
+    violations: &[IcmViolation],
+    cfg: &AutopilotConfig,
+) -> Result<IcmFixOutcome, PrismError> {
+    fix_icm_file_with(project_root, rel_path, violations, cfg, &SystemRunner)
+}
+
+pub fn fix_icm_file_with(
+    project_root: &Path,
+    rel_path: &Path,
+    violations: &[IcmViolation],
+    cfg: &AutopilotConfig,
+    runner: &dyn CommandRunner,
+) -> Result<IcmFixOutcome, PrismError> {
+    let prompt = build_icm_fix_prompt(rel_path, violations);
+    let tools = cfg.allowed_tools.join(",");
+    let args = [
+        "-p",
+        &prompt,
+        "--model",
+        &cfg.model,
+        "--allowedTools",
+        &tools,
+        "--output-format",
+        "json",
+    ];
+
+    let abs_path = if rel_path.is_absolute() {
+        rel_path.to_path_buf()
+    } else {
+        project_root.join(rel_path)
+    };
+
+    let result = runner.run_timeout(
+        "claude",
+        &args,
+        Some(project_root),
+        None,
+        Duration::from_secs(cfg.timeout_secs),
+    )?;
+
+    match result {
+        RunResult::TimedOut => Ok(IcmFixOutcome::TimedOut {
+            file: abs_path,
+        }),
+        RunResult::Completed(out) if !out.success() => {
+            let stderr = out
+                .stderr_str()
+                .lines()
+                .next()
+                .unwrap_or("non-zero exit")
+                .to_string();
+            Ok(IcmFixOutcome::Failed {
+                file: abs_path,
+                stderr,
+            })
+        }
+        RunResult::Completed(_) => {
+            let remaining = crate::icm::validate_icm(
+                project_root,
+                &crate::icm::Scope::File(rel_path.to_path_buf()),
+                crate::icm::IcmSettings::default(),
+            );
+            if remaining.is_empty() {
+                Ok(IcmFixOutcome::Resolved { file: abs_path })
+            } else {
+                Ok(IcmFixOutcome::StillViolated {
+                    file: abs_path,
+                    remaining,
+                })
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Initial-scaffold Haiku helpers (PR 3)
 // ---------------------------------------------------------------------------
 
@@ -375,6 +499,150 @@ mod initial_scaffold_prompt_tests {
         );
         assert!(prompt.contains("<!-- prism:context-enriched -->"));
         assert!(!prompt.contains("<!-- prism:enriched -->\n"));
+    }
+}
+
+#[cfg(test)]
+mod icm_fix_tests {
+    use super::*;
+    use crate::command_runner::{MockRunner, RunResult};
+    use crate::icm::{IcmRule, IcmViolation};
+    use tempfile::TempDir;
+
+    fn seed_clean_stage(root: &Path) -> PathBuf {
+        let stage = root.join("01-discovery");
+        std::fs::create_dir_all(&stage).unwrap();
+        let ctx = stage.join("CONTEXT.md");
+        std::fs::write(
+            &ctx,
+            "# s\n\n## Inputs\n\n## Process\n\n## Outputs\n",
+        )
+        .unwrap();
+        // Also seed L0/L1 so whole-project scope would be clean; this test uses
+        // Scope::File so those aren't strictly required, but doesn't hurt.
+        std::fs::write(root.join("CLAUDE.md"), "# root\n").unwrap();
+        std::fs::write(root.join("CONTEXT.md"), "# routing\n").unwrap();
+        ctx
+    }
+
+    #[test]
+    fn prompt_names_rule_ids_and_cites_spec() {
+        let v = vec![
+            IcmViolation::at_file(
+                IcmRule::StageContextSections,
+                PathBuf::from("01-discovery/CONTEXT.md"),
+                "missing `## Outputs`",
+            ),
+            IcmViolation::at_line(
+                IcmRule::NoEmDash,
+                PathBuf::from("01-discovery/CONTEXT.md"),
+                3,
+                "em dash at column 10",
+            ),
+        ];
+        let prompt = build_icm_fix_prompt(Path::new("01-discovery/CONTEXT.md"), &v);
+        assert!(prompt.contains("STAGE_CONTEXT_SECTIONS"));
+        assert!(prompt.contains("NO_EM_DASH"));
+        assert!(prompt.contains("Interpreted-Context-Methdology"));
+        assert!(prompt.contains("01-discovery/CONTEXT.md"));
+    }
+
+    #[test]
+    fn resolved_when_revalidation_clean() {
+        let dir = TempDir::new().unwrap();
+        let ctx = seed_clean_stage(dir.path());
+        let rel = ctx.strip_prefix(dir.path()).unwrap().to_path_buf();
+        let mock = MockRunner::new();
+        // Runner is a no-op; the file is already clean so validate returns empty.
+        mock.expect("claude", Some("-p"), MockRunner::ok("{}"));
+        let out = fix_icm_file_with(
+            dir.path(),
+            &rel,
+            &[IcmViolation::at_file(
+                IcmRule::StageContextSections,
+                rel.clone(),
+                "missing",
+            )],
+            &AutopilotConfig::default(),
+            &mock,
+        )
+        .unwrap();
+        assert!(matches!(out, IcmFixOutcome::Resolved { .. }));
+    }
+
+    #[test]
+    fn still_violated_when_file_stays_broken() {
+        let dir = TempDir::new().unwrap();
+        // Seed a stage CONTEXT.md that is STILL broken (missing Outputs heading).
+        let stage = dir.path().join("01-discovery");
+        std::fs::create_dir_all(&stage).unwrap();
+        let ctx = stage.join("CONTEXT.md");
+        std::fs::write(&ctx, "# s\n\n## Inputs\n\n## Process\n").unwrap();
+        let rel = ctx.strip_prefix(dir.path()).unwrap().to_path_buf();
+        let mock = MockRunner::new();
+        mock.expect("claude", Some("-p"), MockRunner::ok("{}"));
+        let out = fix_icm_file_with(
+            dir.path(),
+            &rel,
+            &[IcmViolation::at_file(
+                IcmRule::StageContextSections,
+                rel.clone(),
+                "missing",
+            )],
+            &AutopilotConfig::default(),
+            &mock,
+        )
+        .unwrap();
+        match out {
+            IcmFixOutcome::StillViolated { remaining, .. } => {
+                assert!(remaining.iter().any(|v| v.rule == IcmRule::StageContextSections));
+            }
+            other => panic!("expected StillViolated, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn failed_on_nonzero_exit() {
+        let dir = TempDir::new().unwrap();
+        let ctx = seed_clean_stage(dir.path());
+        let rel = ctx.strip_prefix(dir.path()).unwrap().to_path_buf();
+        let mock = MockRunner::new();
+        mock.expect("claude", Some("-p"), MockRunner::fail(1, "boom\ntail"));
+        let out = fix_icm_file_with(
+            dir.path(),
+            &rel,
+            &[],
+            &AutopilotConfig::default(),
+            &mock,
+        )
+        .unwrap();
+        match out {
+            IcmFixOutcome::Failed { stderr, .. } => assert_eq!(stderr, "boom"),
+            other => panic!("expected Failed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn timed_out_on_deadline() {
+        let dir = TempDir::new().unwrap();
+        let ctx = seed_clean_stage(dir.path());
+        let rel = ctx.strip_prefix(dir.path()).unwrap().to_path_buf();
+        let mock = MockRunner::new();
+        mock.expect_timeout(
+            "claude",
+            Some("-p"),
+            MockRunner::ok(""),
+            Ok(RunResult::TimedOut),
+        );
+        let out = fix_icm_file_with(
+            dir.path(),
+            &rel,
+            &[],
+            &AutopilotConfig::default(),
+            &mock,
+        )
+        .unwrap();
+        assert!(matches!(out, IcmFixOutcome::TimedOut { .. }));
     }
 }
 

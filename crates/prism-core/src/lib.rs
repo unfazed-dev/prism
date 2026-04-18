@@ -5,6 +5,7 @@ pub mod config;
 pub mod enrich;
 pub mod hashing;
 pub mod hooks;
+pub mod icm;
 pub mod templates;
 
 #[derive(Debug, thiserror::Error)]

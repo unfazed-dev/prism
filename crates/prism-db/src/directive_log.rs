@@ -13,6 +13,7 @@ pub const SOURCE_DIRECTIVE: &str = "directive";
 pub const SOURCE_AUTOPILOT: &str = "autopilot";
 
 pub const KIND_ENRICH: &str = "ENRICH";
+pub const KIND_FIX_ICM: &str = "FIX_ICM";
 
 pub mod priority {
     pub const IMMEDIATE: i64 = 10;

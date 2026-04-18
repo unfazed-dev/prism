@@ -412,7 +412,11 @@ mod tests {
             .path()
             .join(".claude/rules/prism-document-standard.md")
             .exists());
-        assert_eq!(created.len(), 5);
+        assert!(dir
+            .path()
+            .join(".claude/rules/icm-conventions.md")
+            .exists());
+        assert_eq!(created.len(), 6);
     }
 
     #[test]
